@@ -1,0 +1,19 @@
+{
+  "name": "discord-rp-builder",
+  "version": "1.0.0",
+  "description": "أداة تلقائية لبناء هيكل سيرفر Discord GTA Realistic RP خطوة بخطوة عبر API",
+  "main": "build.js",
+  "type": "commonjs",
+  "scripts": {
+    "roles": "node build.js roles",
+    "categories": "node build.js categories",
+    "all": "node build.js all",
+    "list": "node build.js list",
+    "welcome": "node welcome-bot.js",
+    "export": "node export.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
+  }
+}
