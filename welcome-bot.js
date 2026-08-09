@@ -3,6 +3,9 @@
 //
 // يحتاج: تفعيل "Server Members Intent" من Discord Developer Portal → Bot
 // (بدونها، حدث انضمام عضو جديد ما يوصل للبوت أبدًا)
+//
+// لو cfg.trackInvites = true، يحتاج كمان صلاحية "Manage Server" (Manage Guild)
+// للبوت بالسيرفر عشان يقدر يقرأ قائمة الدعوات ويحدد مين دعا العضو الجديد.
 
 require('dotenv').config();
 const fs = require('fs');
@@ -10,10 +13,10 @@ const path = require('path');
 const {
   Client,
   GatewayIntentBits,
-  EmbedBuilder,
   AttachmentBuilder,
 } = require('discord.js');
 const cfg = require('./config/welcome');
+const { composeWelcomeImage } = require('./lib/composeWelcomeImage');
 
 const token = process.env.DISCORD_TOKEN;
 const guildId = process.env.GUILD_ID;
@@ -24,16 +27,73 @@ if (!token || !guildId) {
 }
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildInvites,
+  ],
 });
 
 function fillTemplate(str, vars) {
   return str.replace(/\{(\w+)\}/g, (_, key) => (vars[key] !== undefined ? vars[key] : `{${key}}`));
 }
 
-client.once('ready', () => {
+// ─────────────────────────────────────────────────────────────
+// تتبع الدعوات — نحتفظ بعدد استخدامات كل رابط دعوة، ولما يدخل عضو جديد
+// نقارن العدد القديم بالجديد لنعرف أي رابط استُخدم ومين صاحبه.
+// أفضل جهد ممكن: روابط الدعوة أحادية الاستخدام تنحذف تلقائيًا بعد الاستخدام
+// فما نقدر نحدد صاحبها بهذي الحالة (قيود Discord API نفسها).
+// ─────────────────────────────────────────────────────────────
+let inviteCache = new Map(); // code -> uses
+
+async function refreshInviteCache(guild) {
+  try {
+    const invites = await guild.invites.fetch();
+    inviteCache = new Map(invites.map((inv) => [inv.code, inv.uses]));
+  } catch (err) {
+    console.warn('⚠️  ما قدرنا نجيب قائمة الدعوات (تأكد إن البوت عنده صلاحية Manage Server):', err.message);
+  }
+}
+
+async function findInviter(guild) {
+  if (!cfg.trackInvites) return null;
+  try {
+    const before = inviteCache;
+    const afterInvites = await guild.invites.fetch();
+
+    let used = null;
+    for (const invite of afterInvites.values()) {
+      const prevUses = before.get(invite.code) ?? 0;
+      if (invite.uses > prevUses) {
+        used = invite;
+        break;
+      }
+    }
+
+    inviteCache = new Map(afterInvites.map((inv) => [inv.code, inv.uses]));
+    return used ? used.inviter : null;
+  } catch (err) {
+    console.warn('⚠️  ما قدرنا نحدد مين دعا العضو الجديد:', err.message);
+    return null;
+  }
+}
+
+client.once('ready', async () => {
   console.log(`✅ بوت الترحيب متصل كـ ${client.user.tag}`);
+  const guild = client.guilds.cache.get(guildId);
+  if (cfg.trackInvites && guild) {
+    await refreshInviteCache(guild);
+    console.log(`📋 تم تحميل ${inviteCache.size} دعوة لتتبعها`);
+  }
   console.log('👂 بانتظار انضمام أعضاء جدد... (اترك هذا الترمنال مفتوح)');
+});
+
+client.on('inviteCreate', (invite) => {
+  if (invite.guild?.id === guildId) inviteCache.set(invite.code, invite.uses);
+});
+
+client.on('inviteDelete', (invite) => {
+  if (invite.guild?.id === guildId) inviteCache.delete(invite.code);
 });
 
 client.on('guildMemberAdd', async (member) => {
@@ -48,6 +108,7 @@ client.on('guildMemberAdd', async (member) => {
     }
 
     const rulesChannel = guild.channels.cache.find((c) => c.name === cfg.rulesChannelName);
+    const inviter = await findInviter(guild);
 
     const vars = {
       member: `<@${member.id}>`,
@@ -55,35 +116,36 @@ client.on('guildMemberAdd', async (member) => {
       memberCount: guild.memberCount,
       serverName: guild.name,
       rulesChannel: rulesChannel ? `<#${rulesChannel.id}>` : '#rules',
+      inviter: inviter ? `<@${inviter.id}>` : 'غير معروف',
     };
 
-    const embed = new EmbedBuilder()
-      .setColor(cfg.color)
-      .setTitle(fillTemplate(cfg.title, vars))
-      .setDescription(fillTemplate(cfg.description, vars))
-      .setFooter({ text: fillTemplate(cfg.footer, vars) })
-      .setTimestamp();
-
-    if (cfg.thumbnail === 'avatar') {
-      embed.setThumbnail(member.user.displayAvatarURL({ size: 256 }));
-    } else if (cfg.thumbnail) {
-      embed.setThumbnail(cfg.thumbnail);
-    }
-
     const files = [];
-    if (cfg.bannerImagePath) {
+    let imageRef = null;
+
+    if (cfg.generateWelcomeImage) {
+      try {
+        const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 512 });
+        const imageBuffer = await composeWelcomeImage(avatarUrl);
+        const filename = cfg.generatedImageFilename || 'welcome.png';
+        files.push(new AttachmentBuilder(imageBuffer, { name: filename }));
+        imageRef = `attachment://${filename}`;
+      } catch (err) {
+        console.warn('⚠️  فشل توليد صورة الترحيب، بنرسل النص فقط:', err.message);
+      }
+    } else if (cfg.bannerImagePath) {
       const fullPath = path.resolve(__dirname, cfg.bannerImagePath);
       if (fs.existsSync(fullPath)) {
         const filename = path.basename(fullPath);
         files.push(new AttachmentBuilder(fullPath, { name: filename }));
-        embed.setImage(`attachment://${filename}`);
+        imageRef = `attachment://${filename}`;
       } else {
         console.warn(`⚠️  ملف البانر غير موجود: ${fullPath} — تم تجاهله`);
       }
     }
 
-    await channel.send({ content: `${vars.member}`, embeds: [embed], files });
-    console.log(`✅ رحّبنا بـ ${member.user.tag} (العضو #${guild.memberCount})`);
+    const content = fillTemplate(cfg.contentTemplate, vars);
+    await channel.send({ content, files });
+    console.log(`✅ رحّبنا بـ ${member.user.tag} (العضو #${guild.memberCount})${inviter ? ` — دعاه ${inviter.tag}` : ''}`);
 
     if (cfg.autoAssignRole) {
       const role = guild.roles.cache.find((r) => r.name === cfg.autoAssignRole);
@@ -120,4 +182,3 @@ if (process.env.PORT) {
       console.log(`🌐 Health-check server listening on port ${process.env.PORT}`);
     });
 }
-

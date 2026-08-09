@@ -5,6 +5,7 @@
   "main": "build.js",
   "type": "commonjs",
   "scripts": {
+    "start": "node welcome-bot.js",
     "roles": "node build.js roles",
     "categories": "node build.js categories",
     "all": "node build.js all",
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "sharp": "^0.35.3"
   }
 }
