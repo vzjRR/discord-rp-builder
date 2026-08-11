@@ -86,7 +86,10 @@ module.exports = [
   { name: '👤 Citizen', color: '#95A5A6', permissions: BASE },
 
   // Automated
-  { name: '🤖 Bot', color: '#7289DA', hoist: true, permissions: [...BASE, 'ManageMessages', 'ManageWebhooks'] },
+  // ManageRoles لازم لـ /role-create و /role-delete، ViewAuditLog لازم للوقات (audit-log, punishment-log,
+  // بيان مين نفّذ كل إجراء). ⚠️ رول 🤖 Bot الموجود فعليًا بسيرفرك ما يتحدّث تلقائيًا — لازم تضيف
+  // "Manage Roles" و "View Audit Log" له يدويًا من Server Settings → Roles → Bot.
+  { name: '🤖 Bot', color: '#7289DA', hoist: true, permissions: [...BASE, 'ManageMessages', 'ManageWebhooks', 'ManageRoles', 'ViewAuditLog'] },
   { name: '🔴 Muted', color: '#2C3E50', permissions: [] },
   { name: '⏳ Pending Verification', color: '#7F8C8D', permissions: [] },
 ];

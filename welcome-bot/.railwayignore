@@ -1,0 +1,5 @@
+node_modules/
+.env
+test-output.png
+dry-run-output.png
+.fc-cache/

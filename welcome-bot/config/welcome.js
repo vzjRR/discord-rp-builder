@@ -2,7 +2,8 @@
 //
 // المتغيرات المتاحة داخل contentTemplate / dmMessage:
 //   {member}       → منشن العضو (يشعره بإشعار)
-//   {memberTag}    → اسم العضو (بدون منشن)
+//   {memberTag}    → يوزرنيم العضو (بدون منشن)
+//   {displayName}  → الاسم المعروض للعضو (اللقب بالسيرفر إن وجد)
 //   {memberCount}  → ترتيب العضو (رقم 1, 2, 3...)
 //   {serverName}   → اسم السيرفر
 //   {rulesChannel} → منشن قناة #rules تلقائيًا (لازم تكون موجودة بنفس الاسم بالأسفل)
@@ -10,7 +11,7 @@
 
 module.exports = {
   // اسم القناة اللي ترسل فيها رسالة الترحيب (لازم تطابق اسم القناة بالضبط)
-  channelName: '👋・welcome',
+  channelName: '✈️・enclave-airport',
 
   // اسم قناة القوانين (تُستخدم مع {rulesChannel} بالأسفل)
   rulesChannelName: '📜・rules',
@@ -23,8 +24,13 @@ module.exports = {
     '✦ | 𝒀𝒐𝒖 𝒂𝒓𝒆 𝒕𝒉𝒆 𝒖𝒔𝒆𝒓 𝒏𝒖𝒎𝒃𝒆𝒓 #{memberCount} 𝒊𝒏 𝒐𝒖𝒓 𝒔𝒆𝒓𝒗𝒆𝒓\n' +
     '✦ | 𝑰𝒏𝒗𝒊𝒕𝒆𝒅 𝒃𝒚 : {inviter}',
 
-  // يولّد صورة الترحيب (اللوقو + صورة العضو بالدائرة) تلقائيًا لكل عضو جديد
-  // من assets/welcome_template.png عبر lib/composeWelcomeImage.js
+  // يولّد صورة الترحيب تلقائيًا لكل عضو جديد من assets/welcome_template.png
+  // عبر lib/composeWelcomeImage.js — يركّب عليها:
+  //   • صورة العضو داخل الدائرة اليمنى
+  //   • الاسم المعروض تحت كلمة WELCOME
+  //   • اليوزرنيم (@username) بالصندوق تحت الأفاتار
+  //   • عدد أعضاء السيرفر بصندوق CURRENT MEMBERS تحت اليسار
+  // لتعديل مواقع/أحجام/ألوان النصوص: LAYOUT بداخل lib/composeWelcomeImage.js
   // خليها false لو تبي ترجع لصورة ثابتة بدل الصورة المولّدة
   generateWelcomeImage: true,
 
@@ -37,9 +43,9 @@ module.exports = {
 
   // رول يُعطى تلقائيًا لكل عضو جديد فور دخوله (null لتعطيل هذي الخاصية)
   // القيمة الافتراضية تطابق رول '⏳ Pending Verification' من config/roles.js
-  autoAssignRole: '⏳ Pending Verification',
+  autoAssignRole: '👤 Citizen',
 
   // إرسال رسالة خاصة (DM) للعضو بالإضافة لرسالة القناة
-  sendDM: false,
-  dmMessage: 'يا هلا فيك بسيرفر {serverName}! تفضل زور قناة welcome داخل السيرفر.',
+  sendDM: true,
+  dmMessage: 'يا هلا فيك بسيرفر {serverName}! تفضل زور قناة ✈️-Enclave-Airport داخل السيرفر.',
 };

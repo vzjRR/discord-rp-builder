@@ -4,6 +4,19 @@
 اعتمادًا على `Discord Server Architecture.md`. **آمن للسيرفر الموجود عندك**: كل عملية تتحقق أولًا
 هل الرول/الكاتيجوري/القناة موجودة بالاسم، وإذا موجودة يتخطاها — فما راح يكرر ولا يحذف شيء.
 
+## هيكل المستودع — ثلاث قطع مستقلة تمامًا
+
+```
+discord-rp-builder/         ← أدوات بناء السيرفر (تشتغل مرة وتطلع، مو بوت دائم): build.js, organization.js, export.js
+├── logs-bot/                ← مشروع Node مستقل، package.json خاص فيه — لوقات security-logs + أوامر رولات
+└── welcome-bot/              ← مشروع Node مستقل، package.json خاص فيه — رسالة الترحيب للأعضاء الجدد
+```
+
+كل مجلد فيه `package.json` و `.env.example` خاص فيه — `npm install` و `npm start` تسويها **داخل كل مجلد لحاله**،
+مو من الجذر. الثلاثة يستخدمون نفس `DISCORD_TOKEN` و `GUILD_ID` (نفس تطبيق Discord)، لكنها عمليات Node منفصلة
+تمامًا — تقدر تنشر `logs-bot/` و `welcome-bot/` كخدمتين منفصلتين على Railway (كل وحدة بـ Root Directory خاص فيها)،
+وتوقف/تعيد تشغيل وحدة بدون ما تأثر على الثانية.
+
 ---
 
 ## 0) قبل ما تبدأ
@@ -164,6 +177,7 @@ node organization.js "Los Santos Cartel"
 
 ## 6.5) بوت الترحيب التلقائي (Welcome Bot)
 
+مشروع مستقل بمجلد `welcome-bot/` — له `package.json` خاص فيه، ينفصل تمامًا عن أدوات البناء وعن `logs-bot/`.
 بعكس `build.js` اللي يشتغل مرة وحدة ويطلع، هذا بوت **يبقى شغّال باستمرار** ويرد على كل عضو جديد لحظة دخوله.
 
 ### أ) فعّل الصلاحية المطلوبة (خطوة إلزامية، مرة وحدة)
@@ -174,33 +188,45 @@ node organization.js "Los Santos Cartel"
 
 بدون هذي الخطوة، حدث "عضو جديد انضم" ما يوصل للبوت أبدًا ولو الكود صحيح 100%.
 
-### ب) صمّم رسالة الترحيب
+### ب) جهّز المجلد (مرة وحدة)
 
-افتح `config/welcome.js` وعدّل:
+```bash
+cd welcome-bot
+npm install
+cp .env.example .env   # واملأ نفس DISCORD_TOKEN و GUILD_ID المستخدمين ببقية المشروع
+```
+
+### ج) صمّم رسالة الترحيب
+
+افتح `welcome-bot/config/welcome.js` وعدّل:
 - `title` / `description` / `footer` — النص، تقدر تستخدم `{member}` `{memberCount}` `{serverName}` `{rulesChannel}`.
 - `color` — لون شريط الرسالة.
-- `bannerImagePath` — لو عندك تصميم بانر خاص بك (PNG/JPG)، حطه بمجلد `assets/` وأشّر لمساره هنا، مثلاً:
+- `bannerImagePath` — لو عندك تصميم بانر خاص بك (PNG/JPG)، حطه بمجلد `welcome-bot/assets/` وأشّر لمساره هنا، مثلاً:
   ```js
   bannerImagePath: './assets/welcome-banner.png',
   ```
 - `autoAssignRole` — الرول اللي يُعطى تلقائيًا للعضو الجديد (افتراضيًا `⏳ Pending Verification`). خليه `null` لو ما تبي إعطاء رول تلقائي.
 - `sendDM` — `true` لو تبي رسالة خاصة كمان بالإضافة لرسالة القناة.
 
-### ج) شغّله
+### د) شغّله
 
 ```bash
-node welcome-bot.js
+cd welcome-bot
+npm start
 ```
 
-اترك الترمنال مفتوح — هذا طبيعي، البوت لازم يبقى شغّال عشان يرد. جرّبه بحساب ثاني (أو خلي صديق) ينضم للسيرفر وشوف النتيجة بقناة `👋・welcome`.
+اترك الترمنال مفتوح — هذا طبيعي، البوت لازم يبقى شغّال عشان يرد. جرّبه بحساب ثاني (أو خلي صديق) ينضم للسيرفر وشوف النتيجة بقناة الترحيب.
 
-### د) التشغيل الدائم (يوم ينتقل لـ VPS)
+### هـ) التشغيل الدائم (يوم ينتقل لـ VPS، أو مباشرة كخدمة Railway منفصلة)
 
-على جهازك الشخصي الحين، البوت يشتغل بس وقت الترمنال مفتوح. لما تنتقل لـ VPS لاحقًا، شغّله بأداة زي [pm2](https://pm2.keymetrics.io) عشان يبقى شغّال حتى لو أعدت تشغيل السيرفر:
+على جهازك الشخصي الحين، البوت يشتغل بس وقت الترمنال مفتوح. على Railway، سوّي خدمة جديدة بنفس المستودع
+وحطّ **Root Directory** = `welcome-bot` — كل خدمة تصير مستقلة بالكامل (بناء، إعادة تشغيل، متغيرات env).
+لو VPS عادي بدل Railway، استخدم [pm2](https://pm2.keymetrics.io):
 
 ```bash
+cd welcome-bot
 npm install -g pm2
-pm2 start welcome-bot.js --name welcome-bot
+pm2 start bot.js --name welcome-bot
 pm2 save
 pm2 startup   # يطبع لك أمر تشغّله مرة وحدة عشان يبدأ تلقائيًا مع تشغيل الجهاز
 ```
@@ -212,6 +238,56 @@ pm2 startup   # يطبع لك أمر تشغّله مرة وحدة عشان يب�
 - **MEE6** (mee6.xyz) — رسائل ترحيب + رولات تلقائية.
 
 الفرق: هذي بوتات طرف ثالث (بياناتهم عندهم مو عندك)، وميزاتها المتقدمة غالبًا مدفوعة. البوت المخصص اللي بنيناه مجاني بالكامل وتتحكم فيه 100%.
+
+---
+
+## 6.6) بوت اللوقات (Logs Bot)
+
+مشروع مستقل بمجلد `logs-bot/` — له `package.json` خاص فيه، ينفصل تمامًا عن welcome-bot وعن أدوات البناء.
+يبقى شغّال باستمرار (زي welcome-bot، بعكس `build.js`) ويكتب بقنوات قسم **🔐 SECURITY & LOGS**
+(`join-log`, `leave-log`, `member-log`, `moderation-log`, `punishment-log`, `audit-log`, `bot-log`, `security`)،
+ويوفر أوامر سلاش لإدارة الرولات: `/role-create` `/role-list` `/role-delete`.
+
+### أ) صلاحيتان إلزاميتان (مرة وحدة)
+
+1. **Message Content Intent** — https://discord.com/developers/applications → تطبيقك → **Bot** → Privileged Gateway Intents
+   → فعّل **MESSAGE CONTENT INTENT** ✅ (بدونها ما يظهر نص الرسائل المحذوفة/المعدّلة بـ `moderation-log`).
+2. **صلاحيات رول 🤖 Bot** — روح Server Settings → Roles → `🤖 Bot` بسيرفرك، وفعّل يدويًا:
+   - **Manage Roles** (لازمة لـ `/role-create` و `/role-delete`)
+   - **View Audit Log** (لازمة لمعرفة "مين نفّذ الإجراء" بـ `audit-log` و `punishment-log`)
+
+   ⚠️ هذي خطوة يدوية إلزامية — `config/roles.js` بجذر المستودع يعرّف هالصلاحيات للرول، لكن `build.js` ما يعدّل
+   رولات موجودة مسبقًا، فلازم تضيفها بنفسك من Discord مباشرة لو الرول already موجود بسيرفرك.
+   وتأكد إن رول البوت لسا فوق كل الرولات اللي بيديره (نفس الملاحظة بخطوة 1.8 فوق).
+
+### ب) جهّز المجلد وشغّله
+
+```bash
+cd logs-bot
+npm install
+cp .env.example .env   # نفس DISCORD_TOKEN و GUILD_ID المستخدمين ببقية المشروع
+npm start
+```
+
+### ج) سجّل أوامر السلاش (مرة وحدة، وبعدها كل ما تعدّل commands/role.js)
+
+```bash
+cd logs-bot
+npm run deploy-commands
+```
+
+هذا يسجّل `/role-create` `/role-list` `/role-delete` مباشرة بسيرفرك (guild-scoped) — يظهرون فورًا بدون انتظار.
+
+### د) تخصيص أو تعطيل نوع لوق معيّن
+
+كل شي بملف `logs-bot/config/logs.js` — لكل نوع `enabled` (شغّل/عطّل)، `channel` (لازم يطابق اسم القناة
+بالضبط بـ `config/categories.js` بجذر المستودع)، و`color`. `ticket-log` و `report-log` معطّلة افتراضيًا
+لعدم وجود نظام تذاكر/بلاغات بعد بالمشروع.
+
+### هـ) النشر على Railway كخدمة منفصلة
+
+سوّي خدمة Railway جديدة بنفس المستودع، وحطّ **Root Directory** = `logs-bot`. حط نفس `DISCORD_TOKEN` و `GUILD_ID`
+بمتغيرات البيئة الخاصة بهالخدمة. هذي الخدمة تُبنى وتُعاد تشغيلها بشكل مستقل تمامًا عن welcome-bot.
 
 ---
 

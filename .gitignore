@@ -1,2 +1,9 @@
 node_modules/
 .env
+
+# مخرجات اختبار صورة الترحيب المحلي (test-welcome.js / dry-run-join.js)
+welcome-bot/test-output.png
+welcome-bot/dry-run-output.png
+
+# كاش fontconfig للخطوط المدمجة (يتولّد تلقائيًا وقت التشغيل)
+.fc-cache/

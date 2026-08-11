@@ -4,18 +4,18 @@
   "description": "أداة تلقائية لبناء هيكل سيرفر Discord GTA Realistic RP خطوة بخطوة عبر API",
   "main": "build.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
-    "start": "node welcome-bot.js",
     "roles": "node build.js roles",
     "categories": "node build.js categories",
     "all": "node build.js all",
     "list": "node build.js list",
-    "welcome": "node welcome-bot.js",
     "export": "node export.js"
   },
   "dependencies": {
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5",
-    "sharp": "^0.35.3"
+    "dotenv": "^16.4.5"
   }
 }
