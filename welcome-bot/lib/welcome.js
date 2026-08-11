@@ -9,10 +9,7 @@ const path = require('path');
 const { AttachmentBuilder } = require('discord.js');
 const cfg = require('../config/welcome');
 const { composeWelcomeImage } = require('./composeWelcomeImage');
-
-function fillTemplate(str, vars) {
-  return str.replace(/\{(\w+)\}/g, (_, key) => (vars[key] !== undefined ? vars[key] : `{${key}}`));
-}
+const { buildTemplateVars, fillTemplate } = require('./templateVars');
 
 function register(client) {
   const guildId = process.env.GUILD_ID;
@@ -81,20 +78,29 @@ function register(client) {
       }
 
       const rulesChannel = guild.channels.cache.find((c) => c.name === cfg.rulesChannelName);
+      const ticketChannel = cfg.ticketChannelName
+        ? guild.channels.cache.find((c) => c.name === cfg.ticketChannelName)
+        : null;
+      if (cfg.ticketChannelName && !ticketChannel) {
+        console.warn(`⚠️  ما لقيت قناة التذاكر "${cfg.ticketChannelName}" — رابط التذكرة بيطلع ناقص بالـ DM`);
+      }
       const inviter = await findInviter(guild);
 
       // الاسم المعروض: اللقب داخل السيرفر ← ثم الاسم العام ← ثم اليوزرنيم
       const displayName = member.nickname || member.user.globalName || member.user.username;
 
-      const vars = {
-        member: `<@${member.id}>`,
+      const vars = buildTemplateVars({
+        guildId: guild.id,
+        serverName: guild.name,
+        memberId: member.id,
         memberTag: member.user.username,
         displayName,
         memberCount: guild.memberCount,
-        serverName: guild.name,
-        rulesChannel: rulesChannel ? `<#${rulesChannel.id}>` : '#rules',
-        inviter: inviter ? `<@${inviter.id}>` : 'غير معروف',
-      };
+        welcomeChannelId: channel.id,
+        rulesChannelId: rulesChannel?.id ?? null,
+        ticketChannelId: ticketChannel?.id ?? null,
+        inviter: inviter ? `<@${inviter.id}>` : undefined,
+      });
 
       const files = [];
       let imageRef = null;

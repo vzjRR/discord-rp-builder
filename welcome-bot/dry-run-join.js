@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const cfg = require('./config/welcome');
 const { composeWelcomeImage } = require('./lib/composeWelcomeImage');
+const { buildTemplateVars, fillTemplate } = require('./lib/templateVars');
 
 const DEFAULT_USER_ID = '1119011672351330377';
 const API = 'https://discord.com/api/v10';
@@ -34,10 +35,7 @@ async function api(route) {
   return res.json();
 }
 
-// نفس دالة fillTemplate الموجودة بـ lib/welcome.js
-function fillTemplate(str, vars) {
-  return str.replace(/\{(\w+)\}/g, (_, key) => (vars[key] !== undefined ? vars[key] : `{${key}}`));
-}
+// نستورد نفس دوال البوت الحقيقي بدل ما ننسخها — عشان المحاكاة تطابق الواقع دايمًا
 
 function avatarUrl(user) {
   if (user.avatar) {
@@ -85,10 +83,16 @@ const rule = () => line('─'.repeat(64));
 
   const welcomeChannel = channels.find((c) => c.name === cfg.channelName);
   const rulesChannel = channels.find((c) => c.name === cfg.rulesChannelName);
+  const ticketChannel = cfg.ticketChannelName
+    ? channels.find((c) => c.name === cfg.ticketChannelName)
+    : null;
   const autoRole = cfg.autoAssignRole ? roles.find((r) => r.name === cfg.autoAssignRole) : null;
 
   line(`   ${welcomeChannel ? '✅' : '❌'} قناة الترحيب  "${cfg.channelName}"`);
   line(`   ${rulesChannel ? '✅' : '⚠️ '} قناة القوانين "${cfg.rulesChannelName}"`);
+  if (cfg.ticketChannelName) {
+    line(`   ${ticketChannel ? '✅' : '⚠️ '} قناة التذاكر  "${cfg.ticketChannelName}"`);
+  }
   if (cfg.autoAssignRole) line(`   ${autoRole ? '✅' : '❌'} الرول التلقائي "${cfg.autoAssignRole}"`);
   rule();
 
@@ -104,15 +108,18 @@ const rule = () => line('─'.repeat(64));
   rule();
 
   // ── 4. النصوص كما بتنرسل بالضبط ─────────────────────────────
-  const vars = {
-    member: `<@${user.id}>`,
+  const vars = buildTemplateVars({
+    guildId,
+    serverName: guild.name,
+    memberId: user.id,
     memberTag: user.username,
     displayName,
     memberCount,
-    serverName: guild.name,
-    rulesChannel: rulesChannel ? `<#${rulesChannel.id}>` : '#rules',
+    welcomeChannelId: welcomeChannel?.id ?? null,
+    rulesChannelId: rulesChannel?.id ?? null,
+    ticketChannelId: ticketChannel?.id ?? null,
     inviter: '<@…>  (يتحدد وقت الدخول الحقيقي حسب رابط الدعوة)',
-  };
+  });
 
   line(`💬 الرسالة اللي بتنرسل بقناة "${cfg.channelName}":`);
   line();

@@ -57,6 +57,10 @@ const NAMES = [
   '★ Nova ★',
   '12345',
   'a',
+  '🔥 Blaze 🔥',
+  'أحمد 🇸🇦',
+  '👑 King',
+  '😀🎮✈️⭐',
   'إبراهيم عبد الرحمن الشمري الطويل جدا',  // اسم طويل يتقلّص
 ];
 
@@ -111,6 +115,25 @@ const NAMES = [
     const b = await require('sharp')(ascii.input).metadata();
     check('العريض ينرسم نفس ASCII (مو tofu)', a.width === b.width && a.height === b.height,
       `عريض=${a.width}x${a.height} ascii=${b.width}x${b.height}`);
+  }
+
+  console.log('\n── 3.6 الإيموجي تنرسم فعلًا (مو مربعات tofu) ────────');
+  // الحيلة: نرسم كودبوينت غير معرّف نهائيًا (U+1FFFD) — هذا *دايمًا* يطلع مربع
+  // tofu بنفس مقاس أي مربع لكودبوينت من ٥ خانات hex. فلو الإيموجي طلعت بنفس
+  // المقاس بالضبط معناها هي كمان tofu ومحد رسمها.
+  const tofuRef = await renderTextLayer('\u{1FFFD}', NAME_STYLE);
+  const tofuSize = tofuRef ? `${tofuRef.width}x${tofuRef.height}` : 'none';
+  for (const [emoji, label] of [
+    ['\u{1F600}', '😀'],
+    ['\u{1F525}', '🔥'],
+    ['\u{2708}️', '✈️'],
+    ['\u{1F3AE}', '🎮'],
+    ['\u{1F451}', '👑'],
+  ]) {
+    const r = await renderTextLayer(emoji, NAME_STYLE);
+    const size = r ? `${r.width}x${r.height}` : 'none';
+    check(`${label} تنرسم بخط الإيموجي`, Boolean(r) && size !== tofuSize,
+      `${size} (مربع tofu = ${tofuSize})`);
   }
 
   console.log('\n── 4. رسم كل الأسماء بدون أخطاء ─────────────────────');
