@@ -1,0 +1,21 @@
+{
+  "name": "enclave-admin-panel",
+  "version": "1.0.0",
+  "description": "منصة تحكم خاصة ببوت Enclave RP — تسجيل دخول برقم سري، إدارة رسائل وmoderation وسجل نشاط",
+  "main": "server.js",
+  "type": "commonjs",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

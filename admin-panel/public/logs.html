@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سجل النشاط — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>سجل النشاط</h1>
+    <p class="subtitle">كل الأعمال اللي صارت من المنصة — مين سواها وامتى</p>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>الوقت</th><th>مين</th><th>الفعل</th><th>التفاصيل</th></tr></thead>
+        <tbody id="logsBody"><tr><td colspan="4" class="subtitle">جارِ التحميل…</td></tr></tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+        <button class="btn small ghost" id="prevPage">السابق</button>
+        <span class="subtitle" id="pageInfo"></span>
+        <button class="btn small ghost" id="nextPage">التالي</button>
+      </div>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  let page = 1;
+
+  const ACTION_LABELS = {
+    login: 'تسجيل دخول', logout: 'تسجيل خروج',
+    'message.dm': 'رسالة خاصة', 'message.announce': 'إعلان بقناة',
+    'moderation.kick': 'طرد', 'moderation.ban': 'حظر', 'moderation.unban': 'فك حظر',
+    'moderation.timeout': 'تايم أوت', 'moderation.warn': 'تحذير',
+    'moderation.purge': 'حذف رسائل', 'moderation.lock': 'قفل قناة', 'moderation.unlock': 'فتح قناة',
+    'admin.create': 'إنشاء حساب', 'admin.revoke': 'حذف حساب',
+  };
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function loadLogs() {
+    const body = document.getElementById('logsBody');
+    body.innerHTML = '<tr><td colspan="4" class="subtitle">جارِ التحميل…</td></tr>';
+    try {
+      const data = await api('GET', `/api/logs?page=${page}`);
+      if (!data.rows.length) {
+        body.innerHTML = '<tr><td colspan="4" class="subtitle">ما فيه أي نشاط بعد</td></tr>';
+      } else {
+        body.innerHTML = data.rows.map((r) => `
+          <tr>
+            <td>${new Date(r.created_at).toLocaleString('ar-SA')}</td>
+            <td>${escapeHtml(r.actor_name)}</td>
+            <td><span class="badge${(r.detail || '').includes('وضع تجربة') ? ' test' : ''}">${ACTION_LABELS[r.action] || escapeHtml(r.action)}</span></td>
+            <td>${escapeHtml(r.detail)}</td>
+          </tr>`).join('');
+      }
+      const totalPages = Math.max(Math.ceil(data.total / data.pageSize), 1);
+      document.getElementById('pageInfo').textContent = `صفحة ${page} من ${totalPages}`;
+      document.getElementById('prevPage').disabled = page <= 1;
+      document.getElementById('nextPage').disabled = page >= totalPages;
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  document.getElementById('prevPage').addEventListener('click', () => { if (page > 1) { page--; loadLogs(); } });
+  document.getElementById('nextPage').addEventListener('click', () => { page++; loadLogs(); });
+
+  loadLogs();
+</script>
+</body>
+</html>

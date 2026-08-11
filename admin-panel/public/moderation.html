@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moderation — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>Moderation</h1>
+    <p class="subtitle">إجراءات الإشراف على الأعضاء والقنوات</p>
+
+    <div class="card">
+      <h2>إجراء على عضو</h2>
+      <label>ID العضو</label>
+      <input type="text" id="memberId" placeholder="مثال: 1303195553068482591">
+      <label>السبب (اختياري إلا بالتحذير)</label>
+      <input type="text" id="memberReason" placeholder="سبب الإجراء">
+
+      <div class="row" style="margin-top:16px">
+        <div>
+          <label style="margin-top:0">مدة التايم أوت (دقايق، 0 = رفع)</label>
+          <input type="number" id="timeoutMinutes" value="60" min="0">
+        </div>
+        <div>
+          <label style="margin-top:0">أيام حذف الرسائل عند الحظر (٠-٧)</label>
+          <input type="number" id="banDays" value="0" min="0" max="7">
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">
+        <button class="btn small" data-action="warn">تحذير</button>
+        <button class="btn small" data-action="timeout">تايم أوت</button>
+        <button class="btn small ghost" data-action="kick">طرد</button>
+        <button class="btn small danger" data-action="ban">حظر</button>
+        <button class="btn small ghost" data-action="unban">فك حظر</button>
+      </div>
+      <div class="msg" id="memberMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>إجراء على قناة</h2>
+      <label>القناة</label>
+      <select id="channelSelect"></select>
+
+      <label>عدد الرسائل للحذف (Purge)</label>
+      <input type="number" id="purgeCount" value="20" min="1" max="500">
+
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">
+        <button class="btn small" data-action="purge">حذف الرسائل</button>
+        <button class="btn small ghost" data-action="lock">قفل القناة</button>
+        <button class="btn small ghost" data-action="unlock">فتح القناة</button>
+      </div>
+      <div class="msg" id="channelMsg"></div>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  (async () => {
+    try {
+      const { channels } = await api('GET', '/api/discord/channels');
+      document.getElementById('channelSelect').innerHTML = channels.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+    } catch { /* تجاهل */ }
+  })();
+
+  const memberActions = {
+    warn: (userId, reason) => api('POST', '/api/moderation/warn', { userId, reason }),
+    timeout: (userId, reason) => api('POST', '/api/moderation/timeout', { userId, reason, minutes: Number(document.getElementById('timeoutMinutes').value) }),
+    kick: (userId, reason) => api('POST', '/api/moderation/kick', { userId, reason }),
+    ban: (userId, reason) => api('POST', '/api/moderation/ban', { userId, reason, deleteMessageDays: Number(document.getElementById('banDays').value) }),
+    unban: (userId, reason) => api('POST', '/api/moderation/unban', { userId, reason }),
+  };
+
+  document.querySelectorAll('.card:nth-of-type(1) [data-action]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const userId = document.getElementById('memberId').value.trim();
+      const reason = document.getElementById('memberReason').value.trim();
+      const msgEl = document.getElementById('memberMsg');
+      if (!userId) return showMsg(msgEl, 'اكتب ID العضو أولًا', false);
+
+      btn.disabled = true;
+      try {
+        const data = await memberActions[btn.dataset.action](userId, reason);
+        showMsg(msgEl, data.testMode ? 'تم (وضع تجربة — راح لعضو التجربة).' : 'تم تنفيذ الإجراء بنجاح.', true);
+      } catch (err) {
+        showMsg(msgEl, err.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  const channelActions = {
+    purge: (channelId) => api('POST', '/api/moderation/purge', { channelId, count: Number(document.getElementById('purgeCount').value) }),
+    lock: (channelId) => api('POST', '/api/moderation/lock', { channelId }),
+    unlock: (channelId) => api('POST', '/api/moderation/unlock', { channelId }),
+  };
+
+  document.querySelectorAll('.card:nth-of-type(2) [data-action]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const channelId = document.getElementById('channelSelect').value;
+      const msgEl = document.getElementById('channelMsg');
+      if (!channelId) return showMsg(msgEl, 'اختر قناة أولًا', false);
+
+      btn.disabled = true;
+      try {
+        const data = await channelActions[btn.dataset.action](channelId);
+        showMsg(msgEl, data.deleted !== undefined ? `تم حذف ${data.deleted} رسالة.` : 'تم تنفيذ الإجراء بنجاح.', true);
+      } catch (err) {
+        showMsg(msgEl, err.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+</body>
+</html>

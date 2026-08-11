@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>الرسائل والإعلانات — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>الرسائل والإعلانات</h1>
+    <p class="subtitle">رسائل خاصة للأعضاء أو إعلانات داخل قنوات السيرفر</p>
+
+    <div class="card">
+      <h2>رسالة خاصة (DM)</h2>
+      <label>الوجهة</label>
+      <div class="radio-group">
+        <label><input type="radio" name="dmMode" value="all" checked> كل الأعضاء</label>
+        <label><input type="radio" name="dmMode" value="role"> رول معيّن</label>
+        <label><input type="radio" name="dmMode" value="user"> عضو محدد (ID)</label>
+      </div>
+
+      <div id="dmRoleField" style="display:none">
+        <label>الرول</label>
+        <select id="dmRole"></select>
+      </div>
+      <div id="dmUserField" style="display:none">
+        <label>ID العضو</label>
+        <input type="text" id="dmUserId" placeholder="مثال: 1303195553068482591">
+      </div>
+
+      <label>نص الرسالة</label>
+      <textarea id="dmContent" placeholder="اكتب الرسالة هنا..."></textarea>
+      <button class="btn" id="dmSend">إرسال</button>
+      <div class="msg" id="dmMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>إعلان بقناة</h2>
+      <label>القناة</label>
+      <select id="announceChannel"></select>
+      <label>نص الإعلان</label>
+      <textarea id="announceContent" placeholder="اكتب الإعلان هنا..."></textarea>
+      <button class="btn" id="announceSend">نشر الإعلان</button>
+      <div class="msg" id="announceMsg"></div>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  (async () => {
+    try {
+      const { roles } = await api('GET', '/api/discord/roles');
+      document.getElementById('dmRole').innerHTML = roles.map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    } catch { /* الحقل يبقى فاضي لو فشل */ }
+
+    try {
+      const { channels } = await api('GET', '/api/discord/channels');
+      document.getElementById('announceChannel').innerHTML = channels.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+    } catch { /* تجاهل */ }
+  })();
+
+  document.querySelectorAll('input[name=dmMode]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const mode = document.querySelector('input[name=dmMode]:checked').value;
+      document.getElementById('dmRoleField').style.display = mode === 'role' ? 'block' : 'none';
+      document.getElementById('dmUserField').style.display = mode === 'user' ? 'block' : 'none';
+    });
+  });
+
+  document.getElementById('dmSend').addEventListener('click', async () => {
+    const mode = document.querySelector('input[name=dmMode]:checked').value;
+    const content = document.getElementById('dmContent').value.trim();
+    const roleId = document.getElementById('dmRole').value;
+    const userId = document.getElementById('dmUserId').value.trim();
+    const msgEl = document.getElementById('dmMsg');
+    const btn = document.getElementById('dmSend');
+    if (!content) return showMsg(msgEl, 'اكتب نص الرسالة أولًا', false);
+
+    btn.disabled = true;
+    try {
+      const data = await api('POST', '/api/messages/dm', { mode, roleId, userId, content });
+      showMsg(msgEl, `بدأ الإرسال لـ ${data.targetCount} مستلم${data.testMode ? ' (وضع تجربة — كلها راحت لعضو التجربة)' : ''}. تابع النتيجة بسجل النشاط.`, true);
+      document.getElementById('dmContent').value = '';
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('announceSend').addEventListener('click', async () => {
+    const channelId = document.getElementById('announceChannel').value;
+    const content = document.getElementById('announceContent').value.trim();
+    const msgEl = document.getElementById('announceMsg');
+    const btn = document.getElementById('announceSend');
+    if (!content) return showMsg(msgEl, 'اكتب نص الإعلان أولًا', false);
+
+    btn.disabled = true;
+    try {
+      const data = await api('POST', '/api/messages/announce', { channelId, content });
+      showMsg(msgEl, data.testMode ? 'تم الإرسال (وضع تجربة — راح لعضو التجربة بدل القناة).' : 'تم نشر الإعلان.', true);
+      document.getElementById('announceContent').value = '';
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

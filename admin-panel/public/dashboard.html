@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>الرئيسية — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>الرئيسية</h1>
+    <p class="subtitle">نظرة سريعة على السيرفر</p>
+
+    <div class="card" id="guildCard">
+      <h2>معلومات السيرفر</h2>
+      <p class="subtitle">جارِ التحميل…</p>
+    </div>
+
+    <div class="card">
+      <h2>روابط سريعة</h2>
+      <p><a href="/messages">إرسال رسالة خاصة أو إعلان</a></p>
+      <p><a href="/moderation">أدوات الإشراف (طرد/حظر/تايم أوت/قفل قناة…)</a></p>
+      <p><a href="/logs">سجل كل الأعمال اللي صارت من المنصة</a></p>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  (async () => {
+    try {
+      const g = await api('GET', '/api/discord/guild');
+      document.getElementById('guildCard').innerHTML = `
+        <h2>معلومات السيرفر</h2>
+        <div style="display:flex;align-items:center;gap:14px">
+          ${g.iconUrl ? `<img src="${g.iconUrl}" style="width:56px;height:56px;border-radius:14px">` : ''}
+          <div>
+            <div style="font-size:16px;font-weight:600">${g.name}</div>
+            <div class="subtitle" style="margin:2px 0 0">${g.memberCount ?? '—'} عضو</div>
+          </div>
+        </div>`;
+    } catch (err) {
+      document.getElementById('guildCard').innerHTML = `<h2>معلومات السيرفر</h2><p class="subtitle">${err.message}</p>`;
+    }
+  })();
+</script>
+</body>
+</html>
