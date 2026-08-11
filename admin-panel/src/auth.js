@@ -7,7 +7,7 @@
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { pool } = require('./db');
+const { db } = require('./db');
 
 const SESSION_COOKIE = 'enclave_admin_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوم
@@ -40,8 +40,8 @@ function recordAttempt(ip) {
 
 // ── إنشاء أول حساب Owner تلقائيًا لو ما فيه ولا حساب بعد ───────────
 async function ensureOwnerSeed() {
-  const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM admins WHERE is_owner = TRUE');
-  if (rows[0].count > 0) return;
+  const { count } = db.prepare('SELECT COUNT(*) AS count FROM admins WHERE is_owner = 1').get();
+  if (count > 0) return;
 
   const pin = process.env.OWNER_SETUP_PIN;
   if (!pin) {
@@ -54,10 +54,7 @@ async function ensureOwnerSeed() {
 
   const name = process.env.OWNER_SETUP_NAME || 'Owner';
   const pinHash = await hashPin(pin);
-  await pool.query(
-    'INSERT INTO admins (name, pin_hash, is_owner) VALUES ($1, $2, TRUE)',
-    [name, pinHash]
-  );
+  db.prepare('INSERT INTO admins (name, pin_hash, is_owner) VALUES (?, ?, 1)').run(name, pinHash);
   console.log(`✅ تم إنشاء حساب Owner باسم "${name}" من OWNER_SETUP_PIN — سجل دخول فيه ثم احذف/غيّر هذا المتغير.`);
 }
 
@@ -72,23 +69,24 @@ async function login(pin, ip) {
     return { ok: false, error: 'الرقم السري غير صحيح' };
   }
 
-  const { rows } = await pool.query('SELECT id, name, pin_hash, is_owner FROM admins');
+  const rows = db.prepare('SELECT id, name, pin_hash, is_owner FROM admins').all();
   for (const row of rows) {
     // eslint-disable-next-line no-await-in-loop
     const match = await bcrypt.compare(pin, row.pin_hash);
     if (match) {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-      await pool.query(
-        'INSERT INTO sessions (token_hash, admin_id, expires_at) VALUES ($1, $2, $3)',
-        [hashToken(token), row.id, expiresAt]
+      db.prepare('INSERT INTO sessions (token_hash, admin_id, expires_at) VALUES (?, ?, ?)').run(
+        hashToken(token),
+        row.id,
+        expiresAt.toISOString()
       );
-      await pool.query('UPDATE admins SET last_login_at = now() WHERE id = $1', [row.id]);
+      db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(row.id);
       return {
         ok: true,
         token,
         expiresAt,
-        admin: { id: row.id, name: row.name, isOwner: row.is_owner },
+        admin: { id: row.id, name: row.name, isOwner: Boolean(row.is_owner) },
       };
     }
   }
@@ -97,24 +95,24 @@ async function login(pin, ip) {
 
 async function logout(token) {
   if (!token) return;
-  await pool.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
+  db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token));
 }
 
 async function resolveSession(token) {
   if (!token) return null;
-  const { rows } = await pool.query(
-    `SELECT s.expires_at, a.id, a.name, a.is_owner
-       FROM sessions s JOIN admins a ON a.id = s.admin_id
-      WHERE s.token_hash = $1`,
-    [hashToken(token)]
-  );
-  const row = rows[0];
+  const row = db
+    .prepare(
+      `SELECT s.expires_at, a.id, a.name, a.is_owner
+         FROM sessions s JOIN admins a ON a.id = s.admin_id
+        WHERE s.token_hash = ?`
+    )
+    .get(hashToken(token));
   if (!row) return null;
   if (new Date(row.expires_at).getTime() < Date.now()) {
-    await pool.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
+    db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token));
     return null;
   }
-  return { id: row.id, name: row.name, isOwner: row.is_owner };
+  return { id: row.id, name: row.name, isOwner: Boolean(row.is_owner) };
 }
 
 function requireAuth(req, res, next) {
