@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>إدارة الحسابات — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>إدارة الحسابات</h1>
+    <p class="subtitle">هذي الصفحة تظهر لحساب الـ Owner فقط — إنشاء وحذف حسابات دخول للمنصة</p>
+
+    <div class="card">
+      <h2>إنشاء حساب جديد</h2>
+      <label>اسم العضو</label>
+      <input type="text" id="newName" placeholder="مثال: Hamood">
+      <label>الرقم السري (أرقام فقط، ٤ إلى ٣٢ رقم)</label>
+      <input type="text" inputmode="numeric" id="newPin" placeholder="مثال: 482913">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+        <input type="checkbox" id="newIsOwner" style="width:auto"> صلاحية Owner (يقدر يدير الحسابات كمان)
+      </label>
+      <button class="btn" id="createBtn">إنشاء</button>
+      <div class="msg" id="createMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>الحسابات الحالية</h2>
+      <table>
+        <thead><tr><th>الاسم</th><th>الصلاحية</th><th>آخر دخول</th><th></th></tr></thead>
+        <tbody id="adminsBody"><tr><td colspan="4" class="subtitle">جارِ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function loadAdmins() {
+    const body = document.getElementById('adminsBody');
+    try {
+      const { admins } = await api('GET', '/api/admins');
+      body.innerHTML = admins.map((a) => `
+        <tr>
+          <td>${escapeHtml(a.name)}</td>
+          <td>${a.isOwner ? '<span class="badge">Owner</span>' : 'أدمن'}</td>
+          <td class="subtitle">${a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString('ar-SA') : 'ما دخل بعد'}</td>
+          <td><button class="btn small danger" data-id="${a.id}" data-name="${escapeHtml(a.name)}">حذف</button></td>
+        </tr>`).join('');
+
+      body.querySelectorAll('[data-id]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (!confirm(`متأكد تبي تحذف حساب "${btn.dataset.name}"؟`)) return;
+          btn.disabled = true;
+          try {
+            await api('DELETE', `/api/admins/${btn.dataset.id}`);
+            loadAdmins();
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+          }
+        });
+      });
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  document.getElementById('createBtn').addEventListener('click', async () => {
+    const name = document.getElementById('newName').value.trim();
+    const pin = document.getElementById('newPin').value.trim();
+    const isOwner = document.getElementById('newIsOwner').checked;
+    const msgEl = document.getElementById('createMsg');
+    const btn = document.getElementById('createBtn');
+
+    btn.disabled = true;
+    try {
+      await api('POST', '/api/admins', { name, pin, isOwner });
+      showMsg(msgEl, `تم إنشاء حساب "${name}" — سلّمه رقمه السري بأمان.`, true);
+      document.getElementById('newName').value = '';
+      document.getElementById('newPin').value = '';
+      document.getElementById('newIsOwner').checked = false;
+      loadAdmins();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  loadAdmins();
+</script>
+</body>
+</html>

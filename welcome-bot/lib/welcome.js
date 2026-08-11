@@ -18,6 +18,16 @@ function register(client) {
   // نقارن العدد القديم بالجديد لنعرف أي رابط استُخدم ومين صاحبه.
   let inviteCache = new Map(); // code -> uses
 
+  // ديسكورد يجمّع الرسائل المتتالية من نفس المرسل بصريًا (بدون فاصل أو هيدر)
+  // لو انبعثت خلال دقايق قليلة من بعض. عشان كل ترحيب يبان برسالة منفصلة
+  // بصريًا، نرسله كـ reply على آخر رسالة ترحيب — هذا يجبر ديسكورد يعرض
+  // هيدر/افتار كامل من جديد بدل ما يلصقها براس الترحيب اللي قبلها.
+  let lastWelcomeMessageId = null;
+
+  function findWelcomeChannel(guild) {
+    return guild.channels.cache.find((c) => c.name === cfg.channelName && c.isTextBased());
+  }
+
   async function refreshInviteCache(guild) {
     try {
       const invites = await guild.invites.fetch();
@@ -52,9 +62,23 @@ function register(client) {
 
   client.once('ready', async () => {
     const guild = client.guilds.cache.get(guildId);
-    if (cfg.trackInvites && guild) {
+    if (!guild) return;
+
+    if (cfg.trackInvites) {
       await refreshInviteCache(guild);
       console.log(`📋 تم تحميل ${inviteCache.size} دعوة لتتبعها`);
+    }
+
+    // نجيب آخر رسالة بقناة الترحيب عشان أول ترحيب بعد إعادة تشغيل البوت
+    // يكمل يرد على آخر رسالة موجودة (لو كانت قريبة بالوقت) بدل ما يلتصق فيها.
+    const channel = findWelcomeChannel(guild);
+    if (channel) {
+      try {
+        const messages = await channel.messages.fetch({ limit: 1 });
+        lastWelcomeMessageId = messages.first()?.id ?? null;
+      } catch (err) {
+        console.warn('⚠️  ما قدرنا نجيب آخر رسالة بقناة الترحيب:', err.message);
+      }
     }
   });
 
@@ -71,7 +95,7 @@ function register(client) {
       if (member.guild.id !== guildId) return; // تجاهل لو البوت بأكثر من سيرفر
 
       const guild = member.guild;
-      const channel = guild.channels.cache.find((c) => c.name === cfg.channelName && c.isTextBased());
+      const channel = findWelcomeChannel(guild);
       if (!channel) {
         console.warn(`⚠️  ما لقيت قناة الترحيب "${cfg.channelName}" — تأكد من الاسم بـ config/welcome.js`);
         return;
@@ -131,7 +155,13 @@ function register(client) {
       }
 
       const content = fillTemplate(cfg.contentTemplate, vars);
-      await channel.send({ content, files });
+      const sendOptions = { content, files };
+      if (lastWelcomeMessageId) {
+        sendOptions.reply = { messageReference: lastWelcomeMessageId, failIfNotExists: false };
+        sendOptions.allowedMentions = { repliedUser: false };
+      }
+      const sentMessage = await channel.send(sendOptions);
+      lastWelcomeMessageId = sentMessage.id;
       console.log(`✅ رحّبنا بـ ${member.user.tag} (العضو #${guild.memberCount})${inviter ? ` — دعاه ${inviter.tag}` : ''}`);
 
       if (cfg.autoAssignRole) {

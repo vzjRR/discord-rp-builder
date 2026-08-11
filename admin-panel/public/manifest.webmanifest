@@ -1,0 +1,16 @@
+{
+  "name": "Enclave RP — لوحة الإدارة",
+  "short_name": "Enclave Admin",
+  "description": "منصة التحكم الخاصة ببوت Enclave RP",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08050c",
+  "theme_color": "#08050c",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

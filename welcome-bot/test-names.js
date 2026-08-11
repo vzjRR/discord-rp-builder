@@ -62,6 +62,7 @@ const NAMES = [
   '👑 King',
   '😀🎮✈️⭐',
   'إبراهيم عبد الرحمن الشمري الطويل جدا',  // اسم طويل يتقلّص
+  '! ZÉCÒ ✩',           // اسم حقيقي كشف مشكلة الرمز ✩ (كان يطلع tofu)
 ];
 
 (async () => {
@@ -133,6 +134,20 @@ const NAMES = [
     const r = await renderTextLayer(emoji, NAME_STYLE);
     const size = r ? `${r.width}x${r.height}` : 'none';
     check(`${label} تنرسم بخط الإيموجي`, Boolean(r) && size !== tofuSize,
+      `${size} (مربع tofu = ${tofuSize})`);
+  }
+
+  console.log('\n── 3.7 الرموز الزخرفية الشائعة (★ ✩ ⚡ …) ما تطلع tofu ──');
+  for (const [sym, label] of [
+    ['✩', '✩ (star outline)'],
+    ['★', '★ (black star)'],
+    ['☆', '☆ (white star)'],
+    ['⚡', '⚡ (bolt)'],
+    ['✦', '✦ (sparkle)'],
+  ]) {
+    const r = await renderTextLayer(sym, NAME_STYLE);
+    const size = r ? `${r.width}x${r.height}` : 'none';
+    check(`${label} تنرسم برمز حقيقي`, Boolean(r) && size !== tofuSize,
       `${size} (مربع tofu = ${tofuSize})`);
   }
 
