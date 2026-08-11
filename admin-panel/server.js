@@ -2,7 +2,7 @@
 // عشان يبقى الكود سهل الفهم والصيانة زي باقي أدوات هذا المستودع.
 //
 // التشغيل: npm install ثم npm start
-// يحتاج: DISCORD_TOKEN, GUILD_ID, DATABASE_URL, SESSION_SECRET
+// يحتاج: DISCORD_TOKEN, GUILD_ID, SESSION_SECRET
 // (شوف .env.example لكل التفاصيل)
 
 require('dotenv').config();
@@ -13,7 +13,7 @@ const cookieParser = require('cookie-parser');
 const { migrate } = require('./src/db');
 const auth = require('./src/auth');
 
-const REQUIRED_ENV = ['DISCORD_TOKEN', 'GUILD_ID', 'DATABASE_URL', 'SESSION_SECRET'];
+const REQUIRED_ENV = ['DISCORD_TOKEN', 'GUILD_ID', 'SESSION_SECRET'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`❌ متغيرات بيئة ناقصة: ${missing.join(', ')} — راجع .env.example`);

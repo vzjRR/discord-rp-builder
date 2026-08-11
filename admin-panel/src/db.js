@@ -1,44 +1,43 @@
-// طبقة قاعدة البيانات — Postgres (Railway يعبّي DATABASE_URL تلقائيًا لو ضفت
-// PostgreSQL Plugin بنفس المشروع). ننشئ الجداول تلقائيًا أول ما السيرفر يشتغل
-// (idempotent — آمن يتكرر كل تشغيل، ما يحذف بيانات موجودة).
+// طبقة قاعدة البيانات — SQLite محلي (better-sqlite3) على مسار DB_PATH.
+// المنصة تشتغل الحين داخل نفس سيرفس welcome-bot على Railway، وتخزّن ملف
+// قاعدة البيانات على الـ Volume المرفق بذاك السيرفس (افتراضيًا /data).
+// ننشئ الجداول تلقائيًا أول ما السيرفر يشتغل (idempotent — آمن يتكرر).
 
-const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+const Database = require('better-sqlite3');
 
-if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL غير مضبوط — لازم تضيف PostgreSQL Plugin بمشروع Railway وتربطه.');
-  process.exit(1);
-}
+const DB_PATH = process.env.SQLITE_PATH || '/data/admin.db';
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
-});
+const db = new Database(DB_PATH);
+db.pragma('journal_mode = WAL');
 
-async function migrate() {
-  await pool.query(`
+function migrate() {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS admins (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       pin_hash TEXT NOT NULL,
-      is_owner BOOLEAN NOT NULL DEFAULT FALSE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      last_login_at TIMESTAMPTZ
+      is_owner INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_login_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY,
       admin_id INTEGER NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      expires_at TIMESTAMPTZ NOT NULL
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS audit_log (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       actor_admin_id INTEGER REFERENCES admins(id) ON DELETE SET NULL,
       actor_name TEXT NOT NULL,
       action TEXT NOT NULL,
       detail TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
@@ -46,4 +45,4 @@ async function migrate() {
   `);
 }
 
-module.exports = { pool, migrate };
+module.exports = { db, migrate };
