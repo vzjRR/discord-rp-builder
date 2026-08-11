@@ -19,9 +19,9 @@ const sharp = require('sharp');
 // الخطوط بـ assets/fonts ومعها fonts.conf، ونوجّه fontconfig لها عبر
 // المتغيّر FONTCONFIG_PATH داخل سكربتات package.json.
 //   Barlow-Bold      → خط العرض الأساسي (لاتيني/أرقام)
-//   NotoSansMath     → حروف اليونيكود الرياضية (مثل 𝑃𝐿𝑎𝑛𝑘 بأسماء ديسكورد)
-//   NotoNaskhArabic  → الأسماء العربية (بترتيب RTL صحيح)
+//   NotoNaskhArabic  → الأسماء العربية (بترتيب RTL صحيح + وصل الحروف)
 //   NotoSans         → احتياطي واسع (سيريلك/يوناني/رموز)
+//   NotoSansMath     → حروف اليونيكود الرياضية (مثل 𝑃𝐿𝑎𝑛𝑘 بأسماء ديسكورد)
 //
 // ⚠️ لازم يُضبط FONTCONFIG_PATH *قبل* ما تبدأ عملية Node — تغييره من داخل
 // الكود ما يوصل لـ fontconfig لأنها تقرأه مرة وحدة عند تحميل المكتبة.
@@ -56,7 +56,44 @@ const RADIUS = 156;
 const FEATHER = 1.5;
 
 // كلها خطوط مدمجة بـ assets/fonts (شوف setupBundledFonts فوق)
-const FONT_STACK = "Barlow, 'Noto Sans Math', 'Noto Naskh Arabic', 'Noto Sans', sans-serif";
+//
+// ⚠️ الترتيب مهم جدًا: لازم 'Noto Naskh Arabic' يجي *قبل* 'Noto Sans Math'.
+// السبب: Noto Sans Math فيه رسوم للحروف العربية المفردة (يستخدمها بالرموز
+// الرياضية العربية) لكن *بدون* جداول الوصل (init/medi/fina) وبدون ليجاتشر لا.
+// فلو جا قبل خط النسخ، Pango يختاره للعربي ويطلع الاسم حروف مفكّكة بشكل معكوس
+// المعنى — مثل "azبانيذا" تنرسم حروف منفصلة بدل "بانيذا" موصولة.
+const FONT_STACK = "Barlow, 'Noto Naskh Arabic', 'Noto Sans', 'Noto Sans Math', sans-serif";
+
+// السكربتات المتصلة (حروفها تنوصل ببعض) — عربي/فارسي/أردو، سرياني، ثنا، نكو، مندائي.
+// letter-spacing يحشر مسافة بين كل حرفين فيكسر الوصل ويطلع الاسم مفكّك، فنلغيه هنا.
+// مكتوبة بـ \u عشان تكون مقروءة ومراجعتها سهلة (المدى محدد بالتعليق جنب كل واحد).
+const CURSIVE_RE = new RegExp(
+  '[' +
+    '\\u0600-\\u06FF' + // Arabic
+    '\\u0700-\\u074F' + // Syriac
+    '\\u0750-\\u077F' + // Arabic Supplement
+    '\\u0780-\\u07BF' + // Thaana
+    '\\u07C0-\\u07FF' + // NKo
+    '\\u0840-\\u085F' + // Mandaic
+    '\\u0860-\\u086F' + // Syriac Supplement
+    '\\u08A0-\\u08FF' + // Arabic Extended-A
+    '\\uFB50-\\uFDFF' + // Arabic Presentation Forms-A
+    '\\uFE70-\\uFEFC' + // Arabic Presentation Forms-B (بدون FEFF لأنها BOM مو حرف)
+    ']'
+);
+
+function isCursiveScript(text) {
+  return CURSIVE_RE.test(String(text));
+}
+
+// أسماء ديسكورد كثير تستخدم حروف "عريضة" (Ｆｕｌｌｗｉｄｔｈ) للزينة، وما فيه ولا خط
+// من الخطوط المدمجة يغطيها — فتطلع مربعات tofu بأرقام hex. هي أصلًا مجرد شكل
+// ثاني للـ ASCII (الفرق ثابت 0xFEE0)، فنرجّعها ASCII عادي بدل ما تنكسر الصورة.
+function normalizeForRender(text) {
+  return String(text)
+    .replace(/[！-～]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/　/g, ' '); // المسافة العريضة (ideographic space)
+}
 
 // مواقع النصوص الثلاثة — كل واحد صندوق نحصر النص جواه ونوسّطه
 const LAYOUT = {
@@ -107,7 +144,9 @@ function escapeXml(str) {
 // يرسم النص على كانفاس شفاف ثم يقصّه على حدود الحبر بالضبط (trim)، عشان نقدر
 // نوسّطه بدقة داخل صندوقه ونصغّره لو طلع أعرض من الصندوق.
 async function renderTextLayer(text, style) {
-  const { fontSize, letterSpacing, color, glow, glowRadius } = style;
+  const { fontSize, color, glow, glowRadius } = style;
+  // بالعربي (وباقي السكربتات المتصلة) نصفّر التباعد عشان الحروف تضل موصولة
+  const letterSpacing = isCursiveScript(text) ? 0 : style.letterSpacing;
   const pad = glowRadius * 3 + 10;
   const w = 4000;
   const h = Math.ceil(fontSize * 2.4) + pad * 2;
@@ -148,7 +187,7 @@ async function renderTextLayer(text, style) {
 async function textComposite(text, style) {
   if (text === null || text === undefined || String(text).trim() === '') return null;
 
-  const rendered = await renderTextLayer(String(text).trim(), style);
+  const rendered = await renderTextLayer(normalizeForRender(text).trim(), style);
   if (!rendered) return null;
 
   let { buffer, width, height } = rendered;
@@ -263,12 +302,36 @@ async function probeFonts() {
   const noto = await measure('Noto Sans', sample);
   const arabic = await measure(FONT_STACK, 'مرحبا');
 
+  // فحص وصل الحروف العربية: "ببب" موصولة تطلع أضيق بكثير من ٣ باءات مفردة
+  // (الوسطى تصير سنّة صغيرة). لو الخط المختار للعربي بدون جداول وصل — مثل
+  // Noto Sans Math — تطلع النسبة ≈1.0 وهذي إشارة إن الترتيب انكسر.
+  const widthOf = (m) => (m ? Number(m.split('x')[0]) : 0);
+  const one = widthOf(await measure(FONT_STACK, 'ب'));
+  const three = widthOf(await measure(FONT_STACK, 'ببب'));
+  const joinRatio = one ? three / (one * 3) : 0;
+  const arabicJoined = joinRatio > 0 && joinRatio < 0.8;
+
   return {
-    ok: Boolean(barlow && noto && barlow !== noto && arabic),
+    ok: Boolean(barlow && noto && barlow !== noto && arabic && arabicJoined),
     barlow,
     noto,
     arabic,
+    arabicJoined,
+    joinRatio: Number(joinRatio.toFixed(2)),
   };
 }
 
-module.exports = { composeWelcomeImage, probeFonts, CANVAS, CENTER, RADIUS, LAYOUT };
+module.exports = {
+  composeWelcomeImage,
+  probeFonts,
+  CANVAS,
+  CENTER,
+  RADIUS,
+  LAYOUT,
+  // مُصدّرة للاختبارات (test-names.js) عشان تفحص نفس مسار الرسم الحقيقي
+  renderTextLayer,
+  textComposite,
+  isCursiveScript,
+  normalizeForRender,
+  FONT_STACK,
+};

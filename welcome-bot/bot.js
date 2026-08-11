@@ -38,7 +38,17 @@ client.once('ready', async () => {
     const { probeFonts } = require('./lib/composeWelcomeImage');
     const p = await probeFonts();
     if (p.ok) {
-      console.log(`🔤 الخطوط المدمجة تمام (Barlow=${p.barlow} NotoSans=${p.noto} عربي=${p.arabic})`);
+      console.log(
+        `🔤 الخطوط المدمجة تمام (Barlow=${p.barlow} NotoSans=${p.noto} ` +
+          `عربي=${p.arabic} وصل=${p.joinRatio})`
+      );
+    } else if (!p.arabicJoined) {
+      // حالة خاصة: الخطوط محمّلة بس العربي ينرسم حروف مفكّكة (ترتيب FONT_STACK انكسر)
+      console.error(
+        `❌ الحروف العربية ما تتوصل! الأسماء العربية بتطلع مفكّكة. ` +
+          `(نسبة الوصل=${p.joinRatio} والمفروض أقل من 0.8) — ` +
+          `تأكد إن 'Noto Naskh Arabic' جاي قبل 'Noto Sans Math' بـ FONT_STACK.`
+      );
     } else {
       console.error(
         `❌ الخطوط المدمجة ما انحمّلت! النصوص بتطلع بخط غلط. ` +
