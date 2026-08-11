@@ -23,6 +23,8 @@ const sharp = require('sharp');
 //   NotoEmoji        → الإيموجي (أحادي اللون — شوف الملاحظة تحت FONT_STACK)
 //   NotoSans         → احتياطي واسع (سيريلك/يوناني/رموز)
 //   NotoSansMath     → حروف اليونيكود الرياضية (مثل 𝑃𝐿𝑎𝑛𝑘 بأسماء ديسكورد)
+//   NotoSansSymbols  → رموز زخرفية شائعة بأسماء ديسكورد (★ ✩ ☆ ⚡ ✦ …)
+//   NotoSansSymbols2 → رموز إضافية (أسهم، بطاقات، رموز متنوعة) ما تغطيها الخطوط فوق
 //
 // ⚠️ لازم يُضبط FONTCONFIG_PATH *قبل* ما تبدأ عملية Node — تغييره من داخل
 // الكود ما يوصل لـ fontconfig لأنها تقرأه مرة وحدة عند تحميل المكتبة.
@@ -69,7 +71,8 @@ const FEATHER = 1.5;
 // فبدل ١٠MB بلا فايدة، نستخدم NotoEmoji الأحادي (٢MB) — رسمه نظيف وبنفس وزن النص
 // ويلتقط توهّج البنفسجي مثل باقي الحروف.
 const FONT_STACK =
-  "Barlow, 'Noto Naskh Arabic', 'Noto Emoji', 'Noto Sans', 'Noto Sans Math', sans-serif";
+  "Barlow, 'Noto Naskh Arabic', 'Noto Emoji', 'Noto Sans', 'Noto Sans Math', " +
+  "'Noto Sans Symbols', 'Noto Sans Symbols 2', sans-serif";
 
 // السكربتات المتصلة (حروفها تنوصل ببعض) — عربي/فارسي/أردو، سرياني، ثنا، نكو، مندائي.
 // letter-spacing يحشر مسافة بين كل حرفين فيكسر الوصل ويطلع الاسم مفكّك، فنلغيه هنا.
