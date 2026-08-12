@@ -93,7 +93,7 @@
   (async () => {
     try {
       const { channels } = await api('GET', '/api/discord/channels');
-      document.getElementById('channelSelect').innerHTML = channels.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('channelSelect').innerHTML = channels.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     } catch { /* تجاهل */ }
   })();
 
