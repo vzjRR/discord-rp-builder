@@ -79,12 +79,12 @@
   (async () => {
     try {
       const { roles } = await api('GET', '/api/discord/roles');
-      document.getElementById('dmRole').innerHTML = roles.map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+      document.getElementById('dmRole').innerHTML = roles.map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
     } catch { /* الحقل يبقى فاضي لو فشل */ }
 
     try {
       const { channels } = await api('GET', '/api/discord/channels');
-      document.getElementById('announceChannel').innerHTML = channels.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('announceChannel').innerHTML = channels.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     } catch { /* تجاهل */ }
   })();
 

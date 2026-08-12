@@ -12,6 +12,13 @@ async function api(method, url, body) {
   return data;
 }
 
+// أي نص مصدره ديسكورد (اسم رول/قناة/سيرفر/عضو) لازم يتهرّب منه قبل ما
+// يدخل innerHTML — هذي الأسماء يقدر يغيّرها أي شخص عنده صلاحية مناسبة
+// بديسكورد نفسه، مو بس مستخدمين المنصة.
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function showMsg(el, text, ok) {
   el.textContent = text;
   el.className = 'msg show ' + (ok ? 'ok' : 'err');
