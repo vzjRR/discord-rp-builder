@@ -175,10 +175,81 @@ tr:last-child td { border-bottom: none; }
   text-align: center; letter-spacing: 8px; font-size: 22px; padding: 14px 12px;
 }
 
+/* ── أداة اختيار عضو (بحث بالاسم) ─────────────────────────────── */
+.member-picker { position: relative; }
+.mp-results {
+  display: none; position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; left: 0;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px;
+  max-height: 260px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.mp-results.show { display: block; }
+.mp-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; font-size: 13px;
+}
+.mp-item:hover { background: rgba(168,85,247,0.12); }
+.mp-item img { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
+.mp-item .mp-name { flex: 1; }
+.mp-item .mp-id { color: var(--text-dim); font-size: 11px; }
+.mp-empty { padding: 10px 12px; font-size: 13px; color: var(--text-dim); }
+.mp-manual-toggle {
+  background: none; border: none; color: var(--purple-light); font-size: 12px;
+  cursor: pointer; padding: 6px 0 0; text-decoration: underline;
+}
+
+/* ── شريط تنسيق الرسائل (Markdown Discord) ────────────────────── */
+.fmt-toolbar { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.fmt-btn {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer;
+}
+.fmt-btn:hover { border-color: var(--purple); color: var(--purple-pale); }
+
+/* ── شبكة صلاحيات الرول ──────────────────────────────────────── */
+.perm-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px; margin: 10px 0;
+}
+.perm-grid label {
+  display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 13px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.perm-grid input { width: auto; }
+
+/* ── تبويبات (صفحة إدارة السيرفر) ────────────────────────────── */
+.tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.tab-btn {
+  background: none; border: none; color: var(--text-dim); padding: 10px 16px;
+  font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent;
+}
+.tab-btn.active { color: var(--purple-pale); border-bottom-color: var(--purple); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.tree-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.tree-item:last-child { border-bottom: none; }
+.tree-item.category { color: var(--purple-pale); font-weight: 600; text-transform: uppercase; font-size: 12px; }
+.tree-item .name { flex: 1; }
+.tree-item.channel { padding-right: 26px; color: var(--text-dim); }
+
+/* ── صفحة التثبيت (PWA) ──────────────────────────────────────── */
+.install-choice {
+  display: flex; gap: 14px; flex-wrap: wrap; margin-top: 20px;
+}
+.install-choice .card { flex: 1; min-width: 220px; text-align: center; cursor: pointer; margin-bottom: 0; }
+.install-choice .card:hover { border-color: var(--purple); }
+.install-choice .icon { font-size: 34px; margin-bottom: 10px; }
+.install-steps { margin-top: 24px; }
+.install-steps ol { padding-right: 20px; margin: 10px 0; }
+.install-steps li { margin-bottom: 8px; font-size: 14px; }
+
 @media (max-width: 720px) {
   .app-shell { flex-direction: column; }
   .sidebar { width: 100%; flex-direction: row; overflow-x: auto; align-items: center; padding: 12px; }
   .brand { margin-bottom: 0; }
   .nav-footer { display: none; }
   .main { padding: 20px; }
+  .install-choice { flex-direction: column; }
 }

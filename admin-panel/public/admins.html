@@ -17,6 +17,8 @@
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
     <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
     <div class="nav-footer">
@@ -30,13 +32,27 @@
 
     <div class="card">
       <h2>إنشاء حساب جديد</h2>
-      <label>اسم العضو</label>
-      <input type="text" id="newName" placeholder="مثال: Hamood">
+      <label>اختر العضو من ديسكورد</label>
+      <div id="newMemberPicker"></div>
+
+      <label>الاسم اللي يظهر بالمنصة</label>
+      <input type="text" id="newName" placeholder="يتعبّى تلقائيًا لما تختار عضو">
+
       <label>الرقم السري (أرقام فقط، ٤ إلى ٣٢ رقم)</label>
-      <input type="text" inputmode="numeric" id="newPin" placeholder="مثال: 482913">
+      <div class="row">
+        <input type="text" inputmode="numeric" id="newPin" placeholder="مثال: 482913">
+        <button type="button" class="btn small ghost" id="genPin" style="flex:0 0 auto">🎲 توليد</button>
+      </div>
+
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
         <input type="checkbox" id="newIsOwner" style="width:auto"> صلاحية Owner (يقدر يدير الحسابات كمان)
       </label>
+
+      <p class="subtitle" style="margin-top:10px">
+        لو اخترت عضو من ديسكورد، بترسل له المنصة تلقائيًا رسالة خاصة فيها رابط الدخول
+        ورقمه السري وتحذير إنه ممنوع يشاركه — لأنه يعطي تحكم شبه كامل بالسيرفر.
+      </p>
+
       <button class="btn" id="createBtn">إنشاء</button>
       <div class="msg" id="createMsg"></div>
     </div>
@@ -53,10 +69,29 @@
   </main>
 </div>
 <script src="/js/app.js"></script>
+<script src="/js/memberPicker.js"></script>
 <script>
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+
+  const newMemberPicker = createMemberPicker({
+    mount: document.getElementById('newMemberPicker'),
+    mode: 'members',
+    placeholder: 'اكتب اسم العضو أو يوزرنيمه...',
+    onSelect: (m) => {
+      if (!document.getElementById('newName').value.trim()) {
+        document.getElementById('newName').value = m.label.replace(/\s*\(@.*\)$/, '');
+      }
+    },
+  });
+
+  document.getElementById('genPin').addEventListener('click', () => {
+    const bytes = new Uint32Array(1);
+    crypto.getRandomValues(bytes);
+    const pin = String(100000000 + (bytes[0] % 900000000));
+    document.getElementById('newPin').value = pin;
+  });
 
   async function loadAdmins() {
     const body = document.getElementById('adminsBody');
@@ -92,16 +127,23 @@
     const name = document.getElementById('newName').value.trim();
     const pin = document.getElementById('newPin').value.trim();
     const isOwner = document.getElementById('newIsOwner').checked;
+    const discordUserId = newMemberPicker.getId();
     const msgEl = document.getElementById('createMsg');
     const btn = document.getElementById('createBtn');
 
+    if (!name) return showMsg(msgEl, 'اكتب اسم يظهر بالمنصة', false);
+
     btn.disabled = true;
     try {
-      await api('POST', '/api/admins', { name, pin, isOwner });
-      showMsg(msgEl, `تم إنشاء حساب "${name}" — سلّمه رقمه السري بأمان.`, true);
+      const data = await api('POST', '/api/admins', { name, pin, isOwner, discordUserId });
+      let text = `تم إنشاء حساب "${name}".`;
+      if (discordUserId) text += data.dmSent ? ' وأُرسلت له رسالة تعريف بالمنصة.' : ` لكن ${data.dmError}`;
+      else text += ' ما اخترت عضو من ديسكورد، فسلّمه رقمه السري بنفسك بأمان.';
+      showMsg(msgEl, text, true);
       document.getElementById('newName').value = '';
       document.getElementById('newPin').value = '';
       document.getElementById('newIsOwner').checked = false;
+      newMemberPicker.clear();
       loadAdmins();
     } catch (err) {
       showMsg(msgEl, err.message, false);

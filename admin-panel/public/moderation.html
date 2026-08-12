@@ -17,6 +17,8 @@
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
     <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
     <div class="nav-footer">
@@ -30,8 +32,8 @@
 
     <div class="card">
       <h2>إجراء على عضو</h2>
-      <label>ID العضو</label>
-      <input type="text" id="memberId" placeholder="مثال: 1303195553068482591">
+      <label>العضو</label>
+      <div id="memberPicker"></div>
       <label>السبب (اختياري إلا بالتحذير)</label>
       <input type="text" id="memberReason" placeholder="سبب الإجراء">
 
@@ -51,9 +53,16 @@
         <button class="btn small" data-action="timeout">تايم أوت</button>
         <button class="btn small ghost" data-action="kick">طرد</button>
         <button class="btn small danger" data-action="ban">حظر</button>
-        <button class="btn small ghost" data-action="unban">فك حظر</button>
       </div>
       <div class="msg" id="memberMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>فك حظر</h2>
+      <label>العضو المحظور</label>
+      <div id="banPicker"></div>
+      <button class="btn small ghost" id="unbanBtn" style="margin-top:16px">فك الحظر</button>
+      <div class="msg" id="unbanMsg"></div>
     </div>
 
     <div class="card">
@@ -76,7 +85,11 @@
   </main>
 </div>
 <script src="/js/app.js"></script>
+<script src="/js/memberPicker.js"></script>
 <script>
+  const memberPicker = createMemberPicker({ mount: document.getElementById('memberPicker'), mode: 'members', placeholder: 'اكتب اسم العضو المستهدف...' });
+  const banPicker = createMemberPicker({ mount: document.getElementById('banPicker'), mode: 'bans', placeholder: 'اكتب اسم العضو المحظور...' });
+
   (async () => {
     try {
       const { channels } = await api('GET', '/api/discord/channels');
@@ -89,15 +102,14 @@
     timeout: (userId, reason) => api('POST', '/api/moderation/timeout', { userId, reason, minutes: Number(document.getElementById('timeoutMinutes').value) }),
     kick: (userId, reason) => api('POST', '/api/moderation/kick', { userId, reason }),
     ban: (userId, reason) => api('POST', '/api/moderation/ban', { userId, reason, deleteMessageDays: Number(document.getElementById('banDays').value) }),
-    unban: (userId, reason) => api('POST', '/api/moderation/unban', { userId, reason }),
   };
 
   document.querySelectorAll('.card:nth-of-type(1) [data-action]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const userId = document.getElementById('memberId').value.trim();
+      const userId = memberPicker.getId();
       const reason = document.getElementById('memberReason').value.trim();
       const msgEl = document.getElementById('memberMsg');
-      if (!userId) return showMsg(msgEl, 'اكتب ID العضو أولًا', false);
+      if (!userId) return showMsg(msgEl, 'اختر عضو أولًا', false);
 
       btn.disabled = true;
       try {
@@ -111,13 +123,31 @@
     });
   });
 
+  document.getElementById('unbanBtn').addEventListener('click', async () => {
+    const userId = banPicker.getId();
+    const msgEl = document.getElementById('unbanMsg');
+    if (!userId) return showMsg(msgEl, 'اختر عضو محظور أولًا', false);
+
+    const btn = document.getElementById('unbanBtn');
+    btn.disabled = true;
+    try {
+      await api('POST', '/api/moderation/unban', { userId });
+      showMsg(msgEl, 'تم فك الحظر.', true);
+      banPicker.clear();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   const channelActions = {
     purge: (channelId) => api('POST', '/api/moderation/purge', { channelId, count: Number(document.getElementById('purgeCount').value) }),
     lock: (channelId) => api('POST', '/api/moderation/lock', { channelId }),
     unlock: (channelId) => api('POST', '/api/moderation/unlock', { channelId }),
   };
 
-  document.querySelectorAll('.card:nth-of-type(2) [data-action]').forEach((btn) => {
+  document.querySelectorAll('.card:nth-of-type(3) [data-action]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const channelId = document.getElementById('channelSelect').value;
       const msgEl = document.getElementById('channelMsg');

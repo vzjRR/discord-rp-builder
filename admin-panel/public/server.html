@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>إدارة السيرفر — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/templates">الرسائل الثابتة</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>إدارة السيرفر</h1>
+    <p class="subtitle">قنوات، كاتجوريز، ورولات — لازم البوت يملك صلاحية Manage Channels / Manage Roles</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="channels">القنوات</button>
+      <button class="tab-btn" data-tab="roles">الرولات</button>
+    </div>
+
+    <!-- ── القنوات ─────────────────────────────────────────────── -->
+    <div class="tab-panel active" id="tab-channels">
+      <div class="card">
+        <h2>إنشاء قناة أو كاتجوري</h2>
+        <label>الاسم</label>
+        <input type="text" id="chName" placeholder="مثال: general">
+        <label>النوع</label>
+        <select id="chType">
+          <option value="0">قناة نصية</option>
+          <option value="5">قناة إعلانات</option>
+          <option value="2">قناة صوتية</option>
+          <option value="4">كاتجوري</option>
+        </select>
+        <div id="chParentField">
+          <label>داخل كاتجوري (اختياري)</label>
+          <select id="chParent"><option value="">بدون</option></select>
+        </div>
+        <label>الموضوع (اختياري، للقنوات النصية بس)</label>
+        <input type="text" id="chTopic" placeholder="وصف قصير للقناة">
+        <button class="btn" id="chCreateBtn">إنشاء</button>
+        <div class="msg" id="chCreateMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>القنوات الحالية</h2>
+        <div id="chTree"><p class="subtitle">جارِ التحميل…</p></div>
+      </div>
+    </div>
+
+    <!-- ── الرولات ──────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-roles">
+      <div class="card">
+        <h2>إنشاء رول جديد</h2>
+        <label>الاسم</label>
+        <input type="text" id="roleName" placeholder="مثال: VIP">
+        <label>اللون</label>
+        <input type="color" id="roleColor" value="#a855f7">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+          <input type="checkbox" id="roleHoist" style="width:auto"> يظهر منفصل بقائمة الأعضاء
+        </label>
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="roleMentionable" style="width:auto"> يقدر أي عضو يمنشنه
+        </label>
+        <label>الصلاحيات</label>
+        <div class="perm-grid" id="rolePermGrid"></div>
+        <button class="btn" id="roleCreateBtn">إنشاء</button>
+        <div class="msg" id="roleCreateMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>الرولات الحالية</h2>
+        <div id="rolesList"><p class="subtitle">جارِ التحميل…</p></div>
+      </div>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  const PERM_LABELS = {
+    CREATE_INSTANT_INVITE: 'إنشاء دعوات',
+    KICK_MEMBERS: 'طرد الأعضاء',
+    BAN_MEMBERS: 'حظر الأعضاء',
+    ADMINISTRATOR: 'مدير (كل الصلاحيات)',
+    MANAGE_CHANNELS: 'إدارة القنوات',
+    MANAGE_GUILD: 'إدارة السيرفر',
+    VIEW_CHANNEL: 'رؤية القنوات',
+    SEND_MESSAGES: 'إرسال رسائل',
+    MANAGE_MESSAGES: 'إدارة الرسائل',
+    MENTION_EVERYONE: 'منشن الكل (@everyone)',
+    CONNECT: 'الاتصال الصوتي',
+    SPEAK: 'التحدث الصوتي',
+    MANAGE_ROLES: 'إدارة الرولات',
+    MODERATE_MEMBERS: 'تايم أوت للأعضاء',
+  };
+  const PERM_BITS = {
+    CREATE_INSTANT_INVITE: 1n, KICK_MEMBERS: 2n, BAN_MEMBERS: 4n, ADMINISTRATOR: 8n,
+    MANAGE_CHANNELS: 16n, MANAGE_GUILD: 32n, VIEW_CHANNEL: 1024n, SEND_MESSAGES: 2048n,
+    MANAGE_MESSAGES: 8192n, MENTION_EVERYONE: 131072n, CONNECT: 1048576n, SPEAK: 2097152n,
+    MANAGE_ROLES: 268435456n, MODERATE_MEMBERS: 1099511627776n,
+  };
+  const CHANNEL_TYPE_LABELS = { 0: 'نصية', 2: 'صوتية', 4: 'كاتجوري', 5: 'إعلانات' };
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    });
+  });
+
+  document.getElementById('rolePermGrid').innerHTML = Object.entries(PERM_LABELS)
+    .map(([key, label]) => `<label><input type="checkbox" value="${key}" class="perm-check">${label}</label>`)
+    .join('');
+
+  // ── قنوات ────────────────────────────────────────────────────
+  async function loadChannels() {
+    const tree = document.getElementById('chTree');
+    try {
+      const { channels } = await api('GET', '/api/discord/all-channels');
+      const categories = channels.filter((c) => c.type === 4);
+      const parentSelect = document.getElementById('chParent');
+      parentSelect.innerHTML = '<option value="">بدون</option>' + categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+      const byParent = (pid) => channels.filter((c) => c.type !== 4 && (c.parentId || null) === pid);
+      const orphan = byParent(null);
+
+      let html = '';
+      const renderChannel = (c) => `
+        <div class="tree-item channel" data-id="${c.id}">
+          <span class="name">${escapeHtml(c.name)} <span class="badge">${CHANNEL_TYPE_LABELS[c.type] || c.type}</span></span>
+          <button class="btn small ghost" data-edit-channel="${c.id}">تعديل</button>
+          <button class="btn small danger" data-delete-channel="${c.id}">حذف</button>
+        </div>
+        <div class="card" id="edit-ch-${c.id}" style="display:none;margin:6px 0 12px"></div>`;
+
+      for (const cat of categories) {
+        html += `
+          <div class="tree-item category" data-id="${cat.id}">
+            <span class="name">${escapeHtml(cat.name)}</span>
+            <button class="btn small ghost" data-edit-channel="${cat.id}">تعديل</button>
+            <button class="btn small danger" data-delete-channel="${cat.id}">حذف</button>
+          </div>
+          <div class="card" id="edit-ch-${cat.id}" style="display:none;margin:6px 0 12px"></div>`;
+        html += byParent(cat.id).map(renderChannel).join('');
+      }
+      html += orphan.map(renderChannel).join('');
+
+      tree.innerHTML = html || '<p class="subtitle">ما فيه قنوات</p>';
+      wireChannelActions(channels, categories);
+    } catch (err) {
+      tree.innerHTML = `<p class="subtitle">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  function wireChannelActions(channels, categories) {
+    document.querySelectorAll('[data-edit-channel]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.editChannel;
+        const box = document.getElementById(`edit-ch-${id}`);
+        const ch = channels.find((c) => c.id === id);
+        if (box.style.display === 'block') { box.style.display = 'none'; return; }
+        box.style.display = 'block';
+        box.innerHTML = `
+          <label>الاسم</label>
+          <input type="text" class="ef-name" value="${escapeHtml(ch.name)}">
+          ${ch.type !== 4 ? `<label>الموضوع</label><input type="text" class="ef-topic" value="${escapeHtml(ch.topic || '')}">
+          <label>الكاتجوري</label>
+          <select class="ef-parent"><option value="">بدون</option>${categories.map((c) => `<option value="${c.id}" ${c.id === ch.parentId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}</select>` : ''}
+          <button class="btn small" style="margin-top:12px">حفظ</button>
+          <div class="msg"></div>`;
+        box.querySelector('button').addEventListener('click', async () => {
+          const body = { name: box.querySelector('.ef-name').value.trim() };
+          const topicEl = box.querySelector('.ef-topic');
+          const parentEl = box.querySelector('.ef-parent');
+          if (topicEl) body.topic = topicEl.value.trim();
+          if (parentEl) body.parentId = parentEl.value || null;
+          try {
+            await api('PATCH', `/api/server/channels/${id}`, body);
+            loadChannels();
+          } catch (err) {
+            showMsg(box.querySelector('.msg'), err.message, false);
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-delete-channel]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('متأكد تبي تحذف هذي القناة/الكاتجوري؟')) return;
+        try {
+          await api('DELETE', `/api/server/channels/${btn.dataset.deleteChannel}`);
+          loadChannels();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    });
+  }
+
+  document.getElementById('chType').addEventListener('change', () => {
+    document.getElementById('chParentField').style.display = document.getElementById('chType').value === '4' ? 'none' : 'block';
+  });
+
+  document.getElementById('chCreateBtn').addEventListener('click', async () => {
+    const name = document.getElementById('chName').value.trim();
+    const type = Number(document.getElementById('chType').value);
+    const parentId = document.getElementById('chParent').value || null;
+    const topic = document.getElementById('chTopic').value.trim();
+    const msgEl = document.getElementById('chCreateMsg');
+    if (!name) return showMsg(msgEl, 'اكتب اسم أولًا', false);
+
+    try {
+      await api('POST', '/api/server/channels', { name, type, parentId: type === 4 ? null : parentId, topic });
+      showMsg(msgEl, 'تم الإنشاء.', true);
+      document.getElementById('chName').value = '';
+      document.getElementById('chTopic').value = '';
+      loadChannels();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    }
+  });
+
+  // ── رولات ────────────────────────────────────────────────────
+  function permsFromString(permStr) {
+    if (!permStr) return [];
+    const bits = BigInt(permStr);
+    return Object.entries(PERM_BITS).filter(([, v]) => (bits & v) === v).map(([k]) => k);
+  }
+
+  async function loadRoles() {
+    const list = document.getElementById('rolesList');
+    try {
+      const { roles } = await api('GET', '/api/discord/roles');
+      list.innerHTML = roles.map((r) => `
+        <div class="tree-item" data-id="${r.id}">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#${(r.color || 0).toString(16).padStart(6, '0')}"></span>
+          <span class="name">${escapeHtml(r.name)}</span>
+          <button class="btn small ghost" data-edit-role="${r.id}">تعديل</button>
+          <button class="btn small danger" data-delete-role="${r.id}">حذف</button>
+        </div>
+        <div class="card" id="edit-role-${r.id}" style="display:none;margin:6px 0 12px"></div>
+      `).join('') || '<p class="subtitle">ما فيه رولات</p>';
+
+      list.querySelectorAll('[data-edit-role]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.editRole;
+          const box = document.getElementById(`edit-role-${id}`);
+          const role = roles.find((r) => r.id === id);
+          if (box.style.display === 'block') { box.style.display = 'none'; return; }
+          box.style.display = 'block';
+          const activePerms = permsFromString(role.permissions);
+          box.innerHTML = `
+            <label>الاسم</label><input type="text" class="ef-name" value="${escapeHtml(role.name)}">
+            <label>اللون</label><input type="color" class="ef-color" value="#${(role.color || 0).toString(16).padStart(6, '0')}">
+            <label style="display:flex;align-items:center;gap:8px;margin-top:14px"><input type="checkbox" class="ef-hoist" style="width:auto" ${role.hoist ? 'checked' : ''}> يظهر منفصل</label>
+            <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="ef-mentionable" style="width:auto" ${role.mentionable ? 'checked' : ''}> يقدر أي عضو يمنشنه</label>
+            <label>الصلاحيات</label>
+            <div class="perm-grid ef-perms">${Object.entries(PERM_LABELS).map(([key, label]) => `<label><input type="checkbox" value="${key}" ${activePerms.includes(key) ? 'checked' : ''}>${label}</label>`).join('')}</div>
+            <button class="btn small" style="margin-top:12px">حفظ</button>
+            <div class="msg"></div>`;
+          box.querySelector('button').addEventListener('click', async () => {
+            const permissions = Array.from(box.querySelectorAll('.ef-perms input:checked')).map((i) => i.value);
+            const colorHex = box.querySelector('.ef-color').value.replace('#', '');
+            try {
+              await api('PATCH', `/api/server/roles/${id}`, {
+                name: box.querySelector('.ef-name').value.trim(),
+                color: parseInt(colorHex, 16),
+                hoist: box.querySelector('.ef-hoist').checked,
+                mentionable: box.querySelector('.ef-mentionable').checked,
+                permissions,
+              });
+              loadRoles();
+            } catch (err) {
+              showMsg(box.querySelector('.msg'), err.message, false);
+            }
+          });
+        });
+      });
+
+      list.querySelectorAll('[data-delete-role]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('متأكد تبي تحذف هذا الرول؟')) return;
+          try {
+            await api('DELETE', `/api/server/roles/${btn.dataset.deleteRole}`);
+            loadRoles();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    } catch (err) {
+      list.innerHTML = `<p class="subtitle">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  document.getElementById('roleCreateBtn').addEventListener('click', async () => {
+    const name = document.getElementById('roleName').value.trim();
+    const colorHex = document.getElementById('roleColor').value.replace('#', '');
+    const hoist = document.getElementById('roleHoist').checked;
+    const mentionable = document.getElementById('roleMentionable').checked;
+    const permissions = Array.from(document.querySelectorAll('.perm-check:checked')).map((i) => i.value);
+    const msgEl = document.getElementById('roleCreateMsg');
+    if (!name) return showMsg(msgEl, 'اكتب اسم أولًا', false);
+
+    try {
+      await api('POST', '/api/server/roles', { name, color: parseInt(colorHex, 16), hoist, mentionable, permissions });
+      showMsg(msgEl, 'تم الإنشاء.', true);
+      document.getElementById('roleName').value = '';
+      document.querySelectorAll('.perm-check').forEach((c) => { c.checked = false; });
+      loadRoles();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    }
+  });
+
+  loadChannels();
+  loadRoles();
+</script>
+</body>
+</html>

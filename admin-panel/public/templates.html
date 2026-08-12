@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>الرسائل الثابتة — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/templates">الرسائل الثابتة</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>الرسائل الثابتة</h1>
+    <p class="subtitle">تعديل نصوص الترحيب اللي ترسل تلقائيًا لكل عضو جديد</p>
+
+    <div class="card">
+      <h2>المتغيرات المتاحة</h2>
+      <p class="subtitle" style="line-height:2">
+        <code>{member}</code> منشن العضو · <code>{memberTag}</code> يوزرنيمه · <code>{displayName}</code> اسمه المعروض ·
+        <code>{memberCount}</code> ترتيبه · <code>{serverName}</code> اسم السيرفر · <code>{inviter}</code> مين دعاه ·
+        <code>{rulesChannel}</code>/<code>{rulesChannelUrl}</code> · <code>{welcomeChannel}</code>/<code>{welcomeChannelUrl}</code> ·
+        <code>{ticketChannel}</code>/<code>{ticketChannelUrl}</code>
+        <br>استخدم صيغة <code>...Url</code> بالرسائل الخاصة، ومنشن <code>{...Channel}</code> العادي بالرسائل داخل السيرفر.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>رسالة الترحيب بالقناة <span class="badge" id="badgeContent" style="display:none">مخصّصة</span></h2>
+      <textarea id="contentTemplate" rows="8"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>الرسالة الخاصة (DM) <span class="badge" id="badgeDm" style="display:none">مخصّصة</span></h2>
+      <textarea id="dmMessage" rows="10"></textarea>
+    </div>
+
+    <button class="btn" id="saveBtn">حفظ التعديلات</button>
+    <button class="btn ghost" id="resetBtn">رجوع للافتراضي</button>
+    <div class="msg" id="msg"></div>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/formatToolbar.js"></script>
+<script>
+  attachFormatToolbar(document.getElementById('contentTemplate'));
+  attachFormatToolbar(document.getElementById('dmMessage'));
+
+  async function load() {
+    try {
+      const data = await api('GET', '/api/templates');
+      document.getElementById('contentTemplate').value = data.contentTemplate;
+      document.getElementById('dmMessage').value = data.dmMessage;
+      document.getElementById('badgeContent').style.display = data.isCustom.contentTemplate ? 'inline-block' : 'none';
+      document.getElementById('badgeDm').style.display = data.isCustom.dmMessage ? 'inline-block' : 'none';
+    } catch (err) {
+      showMsg(document.getElementById('msg'), err.message, false);
+    }
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('msg');
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    try {
+      await api('PUT', '/api/templates', {
+        contentTemplate: document.getElementById('contentTemplate').value,
+        dmMessage: document.getElementById('dmMessage').value,
+      });
+      showMsg(msgEl, 'تم الحفظ — تنطبق على أول عضو جديد يدخل من الحين.', true);
+      load();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', async () => {
+    if (!confirm('ترجّع الرسائل للنص الافتراضي؟')) return;
+    try {
+      await api('POST', '/api/templates/reset');
+      load();
+    } catch (err) {
+      showMsg(document.getElementById('msg'), err.message, false);
+    }
+  });
+
+  load();
+</script>
+</body>
+</html>
