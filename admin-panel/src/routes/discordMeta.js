@@ -36,7 +36,16 @@ router.get('/api/discord/channels', requireAuth, async (req, res) => {
 router.get('/api/discord/roles', requireAuth, async (req, res) => {
   try {
     const roles = await discord.listRoles();
-    res.json({ roles: roles.map((r) => ({ id: r.id, name: r.name, color: r.color })) });
+    res.json({
+      roles: roles.map((r) => ({
+        id: r.id,
+        name: r.name,
+        color: r.color,
+        permissions: r.permissions,
+        hoist: r.hoist,
+        mentionable: r.mentionable,
+      })),
+    });
   } catch (err) {
     console.error('discord/roles:', err.message);
     res.status(502).json({ error: 'تعذّر جلب الرولات من ديسكورد' });
@@ -53,11 +62,51 @@ router.get('/api/discord/members', requireAuth, async (req, res) => {
         id: m.user.id,
         username: m.user.username,
         nickname: m.nick,
+        avatarUrl: discord.avatarUrl(m.user, 64),
       })),
     });
   } catch (err) {
     console.error('discord/members:', err.message);
     res.status(502).json({ error: 'تعذّر البحث عن الأعضاء' });
+  }
+});
+
+router.get('/api/discord/bans', requireAuth, async (req, res) => {
+  const query = String(req.query.query || '').trim().toLowerCase();
+  try {
+    const bans = await discord.listBans();
+    const mapped = bans.map((b) => ({
+      id: b.user.id,
+      username: b.user.username,
+      reason: b.reason,
+      avatarUrl: discord.avatarUrl(b.user, 64),
+    }));
+    const filtered = query
+      ? mapped.filter((b) => b.username.toLowerCase().includes(query) || b.id.includes(query))
+      : mapped;
+    res.json({ bans: filtered.slice(0, 25) });
+  } catch (err) {
+    console.error('discord/bans:', err.message);
+    res.status(502).json({ error: 'تعذّر جلب قائمة المحظورين' });
+  }
+});
+
+router.get('/api/discord/all-channels', requireAuth, async (req, res) => {
+  try {
+    const channels = await discord.listAllChannelsAndCategories();
+    res.json({
+      channels: channels.map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        parentId: c.parent_id,
+        topic: c.topic ?? null,
+        position: c.position,
+      })),
+    });
+  } catch (err) {
+    console.error('discord/all-channels:', err.message);
+    res.status(502).json({ error: 'تعذّر جلب القنوات من ديسكورد' });
   }
 });
 

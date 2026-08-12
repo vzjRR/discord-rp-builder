@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تثبيت المنصة — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap" style="align-items:flex-start;padding-top:48px">
+    <div style="width:100%;max-width:520px">
+      <div class="login-card" style="text-align:center">
+        <img src="/icons/icon-192.png" alt="Enclave RP">
+        <h1>تثبيت منصة الإدارة</h1>
+        <p class="subtitle">اختر طريقة الاستخدام اللي تناسبك</p>
+      </div>
+
+      <div class="install-choice">
+        <div class="card" id="choiceInstall">
+          <div class="icon">📲</div>
+          <h2 style="margin:0 0 6px">ثبّتها كتطبيق</h2>
+          <p class="subtitle" style="margin:0">أيقونة على شاشتك الرئيسية، تفتح زي أي تطبيق ثاني</p>
+        </div>
+        <div class="card" id="choiceBrowser">
+          <div class="icon">🌐</div>
+          <h2 style="margin:0 0 6px">تصفّح مباشرة</h2>
+          <p class="subtitle" style="margin:0">بدون تثبيت — تفتحها من المتصفح كل مرة</p>
+        </div>
+      </div>
+
+      <div class="card install-steps" id="stepsCard" style="display:none">
+        <h2 id="stepsTitle">خطوات التثبيت</h2>
+        <div id="stepsBody"></div>
+        <button class="btn ghost small" id="installNowBtn" style="display:none">📲 تثبيت الآن</button>
+      </div>
+
+      <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+    </div>
+  </div>
+
+<script>
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/.test(ua);
+  const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const installBtn = document.getElementById('installNowBtn');
+    if (installBtn) installBtn.style.display = 'inline-block';
+  });
+
+  function stepsHtml() {
+    if (isStandalone) {
+      return { title: 'مثبّتة عندك بالفعل ✅', body: '<p>تفتحها من نفس الأيقونة اللي بشاشتك الرئيسية.</p>', showBtn: false };
+    }
+    if (isIOS && isSafari) {
+      return {
+        title: 'التثبيت على آيفون / آيباد (Safari)',
+        body: `<ol>
+          <li>اضغط زر <b>المشاركة</b> (المربع وفيه سهم للأعلى ⬆️) بأسفل الشاشة.</li>
+          <li>مرّر لين تلقى <b>"Add to Home Screen" / إضافة إلى الشاشة الرئيسية</b>.</li>
+          <li>اضغط <b>إضافة</b> بأعلى يمين الشاشة.</li>
+        </ol>`,
+        showBtn: false,
+      };
+    }
+    if (isIOS && !isSafari) {
+      return {
+        title: 'لازم Safari للتثبيت',
+        body: '<p>على آيفون/آيباد، التثبيت يشتغل بس من متصفح Safari. افتح هذا الرابط بـ Safari وكرر الخطوات.</p>',
+        showBtn: false,
+      };
+    }
+    if (isAndroid) {
+      return {
+        title: 'التثبيت على أندرويد',
+        body: `<ol>
+          <li>اضغط زر <b>"تثبيت الآن"</b> تحت لو ظهر — أسهل طريقة.</li>
+          <li>أو من قائمة المتصفح (⋮) اختر <b>"Install app" / "Add to Home screen"</b>.</li>
+        </ol>`,
+        showBtn: true,
+      };
+    }
+    return {
+      title: 'التثبيت على الكمبيوتر',
+      body: `<ol>
+        <li>دور على أيقونة تثبيت ⊕ بشريط عنوان المتصفح (يمين مربع كتابة الرابط).</li>
+        <li>أو من قائمة المتصفح اختر <b>"Install Enclave Admin"</b>.</li>
+      </ol>`,
+      showBtn: true,
+    };
+  }
+
+  function showSteps() {
+    const { title, body, showBtn } = stepsHtml();
+    document.getElementById('stepsTitle').textContent = title;
+    document.getElementById('stepsBody').innerHTML = body;
+    document.getElementById('installNowBtn').style.display = showBtn && deferredPrompt ? 'inline-block' : 'none';
+    document.getElementById('stepsCard').style.display = 'block';
+    document.getElementById('stepsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  document.getElementById('choiceInstall').addEventListener('click', showSteps);
+  document.getElementById('choiceBrowser').addEventListener('click', () => { window.location.href = '/login'; });
+
+  document.getElementById('installNowBtn').addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    document.getElementById('installNowBtn').style.display = 'none';
+  });
+
+  if (isStandalone) showSteps();
+</script>
+</body>
+</html>

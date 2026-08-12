@@ -11,6 +11,19 @@ const cfg = require('../config/welcome');
 const { composeWelcomeImage } = require('./composeWelcomeImage');
 const { buildTemplateVars, fillTemplate } = require('./templateVars');
 
+// لو منصة الإدارة (admin-panel) عدّلت نصوص الترحيب، تكتبها هنا — نقرأها
+// بكل حدث انضمام بدل القيم الافتراضية بـ config/welcome.js. الملف اختياري
+// تمامًا؛ لو ما موجود أو تالف نرجع للافتراضي بصمت.
+const TEMPLATES_OVERRIDE_PATH = process.env.MESSAGE_TEMPLATES_PATH || '/data/message-templates.json';
+
+function loadTemplateOverrides() {
+  try {
+    return JSON.parse(fs.readFileSync(TEMPLATES_OVERRIDE_PATH, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
 function register(client) {
   const guildId = process.env.GUILD_ID;
 
@@ -136,7 +149,8 @@ function register(client) {
         }
       }
 
-      const content = fillTemplate(cfg.contentTemplate, vars);
+      const overrides = loadTemplateOverrides();
+      const content = fillTemplate(overrides.contentTemplate || cfg.contentTemplate, vars);
       await channel.send({ content, files });
       console.log(`✅ رحّبنا بـ ${member.user.tag} (العضو #${guild.memberCount})${inviter ? ` — دعاه ${inviter.tag}` : ''}`);
 
@@ -150,7 +164,7 @@ function register(client) {
       }
 
       if (cfg.sendDM) {
-        const dmText = fillTemplate(cfg.dmMessage, vars);
+        const dmText = fillTemplate(overrides.dmMessage || cfg.dmMessage, vars);
         await member.send(dmText).catch(() => {
           console.log(`   ℹ️  ما قدرنا نرسل DM لـ ${member.user.tag} (خصوصياته مقفلة على الأرجح)`);
         });

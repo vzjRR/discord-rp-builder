@@ -63,17 +63,114 @@ function bannerUrl(guild, size = 1024) {
   return `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.${ext}?size=${size}`;
 }
 
+function avatarUrl(user, size = 64) {
+  if (!user) return null;
+  if (!user.avatar) {
+    const idx = user.discriminator && user.discriminator !== '0'
+      ? Number(user.discriminator) % 5
+      : Number((BigInt(user.id) >> 22n) % 6n);
+    return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+  }
+  const ext = user.avatar.startsWith('a_') ? 'gif' : 'png';
+  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=${size}`;
+}
+
 // ── قنوات / رولات / أعضاء ────────────────────────────────────────
+
+// نصية/إعلانات فقط — تستخدم بقوائم اختيار "أرسل رسالة بقناة"
 async function listChannels() {
   const channels = await request('GET', `/guilds/${guildId}/channels`);
   return channels
-    .filter((c) => [0, 5].includes(c.type)) // نصية / إعلانات فقط
+    .filter((c) => [0, 5].includes(c.type))
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+}
+
+// كل القنوات والكاتجوريز — تستخدم بصفحة إدارة السيرفر
+async function listAllChannelsAndCategories() {
+  const channels = await request('GET', `/guilds/${guildId}/channels`);
+  return channels.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+}
+
+async function createChannel({ name, type, parentId, topic }) {
+  return request('POST', `/guilds/${guildId}/channels`, {
+    name,
+    type,
+    parent_id: parentId || null,
+    topic: topic || undefined,
+  });
+}
+
+async function updateChannel(channelId, { name, topic, parentId, position }) {
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (topic !== undefined) body.topic = topic;
+  if (parentId !== undefined) body.parent_id = parentId || null;
+  if (position !== undefined) body.position = position;
+  return request('PATCH', `/channels/${channelId}`, body);
+}
+
+async function deleteChannel(channelId) {
+  return request('DELETE', `/channels/${channelId}`);
 }
 
 async function listRoles() {
   const roles = await request('GET', `/guilds/${guildId}/roles`);
   return roles.filter((r) => r.name !== '@everyone').sort((a, b) => b.position - a.position);
+}
+
+// بتات صلاحيات ديسكورد الشائعة (كنصوص عشان أرقامها تتجاوز حدود آمنة لبعض
+// العمليات — نجمعها بـ BigInt ونحولها نص بالنهاية زي ما تتوقعه REST API)
+const PERMISSION_BITS = {
+  CREATE_INSTANT_INVITE: 1n,
+  KICK_MEMBERS: 2n,
+  BAN_MEMBERS: 4n,
+  ADMINISTRATOR: 8n,
+  MANAGE_CHANNELS: 16n,
+  MANAGE_GUILD: 32n,
+  VIEW_CHANNEL: 1024n,
+  SEND_MESSAGES: 2048n,
+  MANAGE_MESSAGES: 8192n,
+  MENTION_EVERYONE: 131072n,
+  CONNECT: 1048576n,
+  SPEAK: 2097152n,
+  MANAGE_ROLES: 268435456n,
+  MODERATE_MEMBERS: 1099511627776n,
+};
+
+function combinePermissions(names = []) {
+  let bits = 0n;
+  for (const name of names) {
+    if (PERMISSION_BITS[name]) bits |= PERMISSION_BITS[name];
+  }
+  return bits.toString();
+}
+
+async function createRole({ name, color, permissions, hoist, mentionable }) {
+  return request('POST', `/guilds/${guildId}/roles`, {
+    name,
+    color: color || 0,
+    permissions: combinePermissions(permissions),
+    hoist: Boolean(hoist),
+    mentionable: Boolean(mentionable),
+  });
+}
+
+async function updateRole(roleId, { name, color, permissions, hoist, mentionable }) {
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (color !== undefined) body.color = color;
+  if (permissions !== undefined) body.permissions = combinePermissions(permissions);
+  if (hoist !== undefined) body.hoist = Boolean(hoist);
+  if (mentionable !== undefined) body.mentionable = Boolean(mentionable);
+  return request('PATCH', `/guilds/${guildId}/roles/${roleId}`, body);
+}
+
+async function deleteRole(roleId) {
+  return request('DELETE', `/guilds/${guildId}/roles/${roleId}`);
+}
+
+async function listBans() {
+  return request('GET', `/guilds/${guildId}/bans?limit=1000`);
 }
 
 async function listAllMembers({ maxPages = 50 } = {}) {
@@ -214,11 +311,21 @@ module.exports = {
   getGuild,
   iconUrl,
   bannerUrl,
+  avatarUrl,
   listChannels,
+  listAllChannelsAndCategories,
+  createChannel,
+  updateChannel,
+  deleteChannel,
   listRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  PERMISSION_BITS,
   listAllMembers,
   listMembersByRole,
   searchMembers,
+  listBans,
   sendDM,
   sendChannelMessage,
   kickMember,

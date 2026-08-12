@@ -43,6 +43,12 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
   `);
+
+  // SQLite ما فيه "ADD COLUMN IF NOT EXISTS" مضمونة بكل النسخ — نتأكد يدويًا
+  const adminCols = db.prepare('PRAGMA table_info(admins)').all().map((c) => c.name);
+  if (!adminCols.includes('discord_user_id')) {
+    db.exec('ALTER TABLE admins ADD COLUMN discord_user_id TEXT');
+  }
 }
 
 module.exports = { db, migrate };

@@ -65,6 +65,8 @@ app.use(require('./src/routes/messages'));
 app.use(require('./src/routes/moderation'));
 app.use(require('./src/routes/logs'));
 app.use(require('./src/routes/admins'));
+app.use(require('./src/routes/server'));
+app.use(require('./src/routes/templates'));
 
 // ── صفحات الواجهة (كل وحدة محمية بحسب الحاجة) ────────────────────
 const page = (name) => path.join(__dirname, 'public', name);
@@ -74,9 +76,14 @@ app.get('/login', (req, res) => {
   res.sendFile(page('login.html'));
 });
 
+// صفحة إرشادات التثبيت — عامة، ما فيها بيانات حساسة
+app.get('/install', (req, res) => res.sendFile(page('install.html')));
+
 app.get('/', auth.requireAuth, (req, res) => res.sendFile(page('dashboard.html')));
 app.get('/messages', auth.requireAuth, (req, res) => res.sendFile(page('messages.html')));
 app.get('/moderation', auth.requireAuth, (req, res) => res.sendFile(page('moderation.html')));
+app.get('/server', auth.requireAuth, (req, res) => res.sendFile(page('server.html')));
+app.get('/templates', auth.requireAuth, (req, res) => res.sendFile(page('templates.html')));
 app.get('/logs', auth.requireAuth, (req, res) => res.sendFile(page('logs.html')));
 app.get('/admins', auth.requireAuth, auth.requireOwner, (req, res) => res.sendFile(page('admins.html')));
 
