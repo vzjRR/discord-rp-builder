@@ -54,7 +54,7 @@ const missing = buildTemplateVars({
 const dmMissing = fillTemplate(cfg.dmMessage, missing);
 check('ما ينكسر لو القنوات مو موجودة', typeof dmMissing === 'string' && dmMissing.length > 0);
 check('ما يطلع رابط ناقص فيه null/undefined', !/null|undefined/.test(dmMissing));
-check('الداعي الافتراضي "غير معروف"', missing.inviter === 'غير معروف');
+check('الداعي الافتراضي "رابط دعوة السيرفر"', missing.inviter === 'رابط دعوة السيرفر');
 
 console.log('\n── صحة إعدادات القنوات ──────────────────────────────');
 for (const key of ['channelName', 'rulesChannelName', 'ticketChannelName']) {
