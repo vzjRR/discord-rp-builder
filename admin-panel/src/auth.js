@@ -54,8 +54,8 @@ async function ensureOwnerSeed() {
 
   const name = process.env.OWNER_SETUP_NAME || 'Owner';
   const pinHash = await hashPin(pin);
-  db.prepare('INSERT INTO admins (name, pin_hash, is_owner) VALUES (?, ?, 1)').run(name, pinHash);
-  console.log(`✅ تم إنشاء حساب Owner باسم "${name}" من OWNER_SETUP_PIN — سجل دخول فيه ثم احذف/غيّر هذا المتغير.`);
+  db.prepare('INSERT INTO admins (name, pin_hash, is_owner, must_change_pin) VALUES (?, ?, 1, 1)').run(name, pinHash);
+  console.log(`✅ تم إنشاء حساب Owner باسم "${name}" من OWNER_SETUP_PIN — سجل دخول فيه وغيّر رقمك السري فورًا.`);
 }
 
 // ── تسجيل الدخول ─────────────────────────────────────────────────
@@ -69,7 +69,7 @@ async function login(pin, ip) {
     return { ok: false, error: 'الرقم السري غير صحيح' };
   }
 
-  const rows = db.prepare('SELECT id, name, pin_hash, is_owner FROM admins').all();
+  const rows = db.prepare('SELECT id, name, pin_hash, is_owner, must_change_pin FROM admins').all();
   for (const row of rows) {
     // eslint-disable-next-line no-await-in-loop
     const match = await bcrypt.compare(pin, row.pin_hash);
@@ -86,7 +86,12 @@ async function login(pin, ip) {
         ok: true,
         token,
         expiresAt,
-        admin: { id: row.id, name: row.name, isOwner: Boolean(row.is_owner) },
+        admin: {
+          id: row.id,
+          name: row.name,
+          isOwner: Boolean(row.is_owner),
+          mustChangePin: Boolean(row.must_change_pin),
+        },
       };
     }
   }
@@ -102,7 +107,7 @@ async function resolveSession(token) {
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT s.expires_at, a.id, a.name, a.is_owner
+      `SELECT s.expires_at, a.id, a.name, a.is_owner, a.must_change_pin
          FROM sessions s JOIN admins a ON a.id = s.admin_id
         WHERE s.token_hash = ?`
     )
@@ -112,7 +117,25 @@ async function resolveSession(token) {
     db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token));
     return null;
   }
-  return { id: row.id, name: row.name, isOwner: Boolean(row.is_owner) };
+  return {
+    id: row.id,
+    name: row.name,
+    isOwner: Boolean(row.is_owner),
+    mustChangePin: Boolean(row.must_change_pin),
+  };
+}
+
+// ── تغيير الرقم السري (ذاتي — يحتاج الرقم الحالي) ───────────────────
+async function changePin(adminId, currentPin, newPin) {
+  const row = db.prepare('SELECT pin_hash FROM admins WHERE id = ?').get(adminId);
+  if (!row) return { ok: false, error: 'الحساب غير موجود' };
+
+  const match = await bcrypt.compare(String(currentPin || ''), row.pin_hash);
+  if (!match) return { ok: false, error: 'رقمك السري الحالي غير صحيح' };
+
+  const newHash = await hashPin(newPin);
+  db.prepare('UPDATE admins SET pin_hash = ?, must_change_pin = 0 WHERE id = ?').run(newHash, adminId);
+  return { ok: true };
 }
 
 function requireAuth(req, res, next) {
@@ -139,6 +162,7 @@ module.exports = {
   login,
   logout,
   resolveSession,
+  changePin,
   requireAuth,
   requireOwner,
 };

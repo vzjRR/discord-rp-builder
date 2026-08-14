@@ -40,14 +40,28 @@ function migrate() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS access_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      discord_user_id TEXT NOT NULL,
+      note TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT,
+      resolved_by_admin_id INTEGER REFERENCES admins(id) ON DELETE SET NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(status, created_at DESC);
   `);
 
   // SQLite ما فيه "ADD COLUMN IF NOT EXISTS" مضمونة بكل النسخ — نتأكد يدويًا
   const adminCols = db.prepare('PRAGMA table_info(admins)').all().map((c) => c.name);
   if (!adminCols.includes('discord_user_id')) {
     db.exec('ALTER TABLE admins ADD COLUMN discord_user_id TEXT');
+  }
+  if (!adminCols.includes('must_change_pin')) {
+    db.exec('ALTER TABLE admins ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0');
   }
 }
 

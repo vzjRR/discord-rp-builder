@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>طلب رمز دخول — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card" style="max-width:400px">
+      <img src="/icons/icon-192.png" alt="Enclave RP">
+      <h1>طلب رمز دخول</h1>
+      <p class="subtitle">اكتب ID حساب ديسكورد تبعك — إدارة السيرفر بتراجع طلبك وترسل لك رمزك بالخاص لو وافقت.</p>
+
+      <form id="reqForm" style="text-align:right">
+        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">ID حساب ديسكورد</label>
+        <input type="text" inputmode="numeric" id="discordId" placeholder="مثال: 1303195553068482591" required>
+
+        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">ملاحظة (اختياري)</label>
+        <input type="text" id="note" placeholder="مين إنت وليش تبي دخول؟" maxlength="300">
+
+        <button type="submit" class="btn" style="width:100%">إرسال الطلب</button>
+        <div class="msg" id="msg"></div>
+      </form>
+
+      <p class="subtitle" style="margin-top:18px">
+        <a href="/login">رجوع لتسجيل الدخول</a>
+      </p>
+    </div>
+  </div>
+  <script>
+    document.getElementById('reqForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const discordUserId = document.getElementById('discordId').value.trim();
+      const note = document.getElementById('note').value.trim();
+      const msg = document.getElementById('msg');
+      const btn = e.target.querySelector('button');
+
+      if (!/^[0-9]{15,25}$/.test(discordUserId)) {
+        msg.textContent = 'اكتب ID صحيح (أرقام فقط) — فعّل Developer Mode بديسكورد ثم اضغط بزر يمين على حسابك واختر Copy User ID.';
+        msg.className = 'msg show err';
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/access-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discordUserId, note }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'تعذّر إرسال الطلب');
+        e.target.innerHTML = '';
+        msg.textContent = '✅ تم إرسال طلبك. لو وافقت الإدارة بتوصلك رسالة خاصة بديسكورد فيها رمز دخولك.';
+        msg.className = 'msg show ok';
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'msg show err';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -67,6 +67,27 @@ app.get('/manifest.webmanifest', (req, res) =>
 );
 app.get('/sw.js', (req, res) => res.sendFile(path.join(__dirname, 'public/sw.js')));
 
+// لو الحساب لازم يغيّر رقمه السري (أول دخول بحساب جديد) — نقفل كل شيء
+// غيره لين يغيّره. المسارات المستثناة بس: تغيير الرقم نفسه، الخروج،
+// معرفة هويته (يحتاجها change-pin.html)، وطلب رمز جديد (عام أصلًا).
+const FRESH_PIN_EXEMPT_PATHS = new Set([
+  '/api/me',
+  '/api/me/pin',
+  '/api/logout',
+  '/change-pin',
+  '/request-access',
+  '/api/access-requests',
+]);
+app.use((req, res, next) => {
+  if (req.admin?.mustChangePin && !FRESH_PIN_EXEMPT_PATHS.has(req.path)) {
+    if (req.path.startsWith('/api/')) {
+      return res.status(403).json({ error: 'لازم تغيّر رقمك السري أول', mustChangePin: true });
+    }
+    return res.redirect('/change-pin');
+  }
+  next();
+});
+
 // ── API ─────────────────────────────────────────────────────────
 app.use(require('./src/routes/auth'));
 app.use(require('./src/routes/discordMeta'));
@@ -76,6 +97,7 @@ app.use(require('./src/routes/logs'));
 app.use(require('./src/routes/admins'));
 app.use(require('./src/routes/server'));
 app.use(require('./src/routes/templates'));
+app.use(require('./src/routes/access'));
 
 // ── صفحات الواجهة (كل وحدة محمية بحسب الحاجة) ────────────────────
 const page = (name) => path.join(__dirname, 'public', name);
@@ -87,6 +109,15 @@ app.get('/login', (req, res) => {
 
 // صفحة إرشادات التثبيت — عامة، ما فيها بيانات حساسة
 app.get('/install', (req, res) => res.sendFile(page('install.html')));
+
+// طلب رمز دخول جديد — عامة (قبل تسجيل الدخول أصلًا)
+app.get('/request-access', (req, res) => {
+  if (req.admin && !req.admin.mustChangePin) return res.redirect('/');
+  res.sendFile(page('request-access.html'));
+});
+
+// تغيير الرقم السري — تحتاج تسجيل دخول بس، تشتغل حتى لو mustChangePin
+app.get('/change-pin', auth.requireAuth, (req, res) => res.sendFile(page('change-pin.html')));
 
 app.get('/', auth.requireAuth, (req, res) => res.sendFile(page('dashboard.html')));
 app.get('/messages', auth.requireAuth, (req, res) => res.sendFile(page('messages.html')));

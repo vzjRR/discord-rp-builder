@@ -35,4 +35,22 @@ router.get('/api/me', (req, res) => {
   res.json({ admin: req.admin, testMode: isTestMode() });
 });
 
+const PIN_RE = /^[0-9]{4,32}$/;
+
+router.put('/api/me/pin', auth.requireAuth, async (req, res) => {
+  const { currentPin, newPin } = req.body || {};
+  if (!PIN_RE.test(newPin || '')) {
+    return res.status(400).json({ error: 'الرقم السري الجديد لازم يكون أرقام فقط، من ٤ إلى ٣٢ رقم' });
+  }
+  if (newPin === currentPin) {
+    return res.status(400).json({ error: 'اختر رقم مختلف عن الرقم الحالي' });
+  }
+
+  const result = await auth.changePin(req.admin.id, currentPin, newPin);
+  if (!result.ok) return res.status(401).json({ error: result.error });
+
+  await logAction(req.admin, 'admin.change_pin', 'غيّر رقمه السري');
+  res.json({ ok: true });
+});
+
 module.exports = router;

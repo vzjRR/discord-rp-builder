@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تغيير الرقم السري — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card" style="max-width:400px">
+      <img src="/icons/icon-192.png" alt="Enclave RP">
+      <h1>تغيير الرقم السري</h1>
+      <p class="subtitle" id="subtitle">اختر رقم سري جديد تحفظه لنفسك</p>
+
+      <form id="changeForm" style="text-align:right">
+        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الحالي</label>
+        <input type="password" inputmode="numeric" id="currentPin" maxlength="32" required autofocus>
+
+        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الجديد (٤-٣٢ رقم)</label>
+        <input type="password" inputmode="numeric" id="newPin" maxlength="32" required>
+
+        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">أكّد الرقم الجديد</label>
+        <input type="password" inputmode="numeric" id="confirmPin" maxlength="32" required>
+
+        <button type="submit" class="btn" style="width:100%">تغيير</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+  </div>
+  <script>
+    (async () => {
+      try {
+        const res = await fetch('/api/me');
+        const data = await res.json();
+        if (!res.ok) throw new Error();
+        if (data.admin.mustChangePin) {
+          document.getElementById('subtitle').textContent =
+            'لازم تغيّر رقمك السري قبل ما تقدر تستخدم المنصة — هذي خطوة إلزامية أول دخول.';
+        }
+      } catch {
+        window.location.href = '/login';
+      }
+    })();
+
+    document.getElementById('changeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPin = document.getElementById('currentPin').value.trim();
+      const newPin = document.getElementById('newPin').value.trim();
+      const confirmPin = document.getElementById('confirmPin').value.trim();
+      const msg = document.getElementById('msg');
+      const btn = e.target.querySelector('button');
+
+      if (!/^[0-9]{4,32}$/.test(newPin)) {
+        msg.textContent = 'الرقم الجديد لازم يكون أرقام فقط، من ٤ إلى ٣٢ رقم';
+        msg.className = 'msg show err';
+        return;
+      }
+      if (newPin !== confirmPin) {
+        msg.textContent = 'الرقمين ما يتطابقون';
+        msg.className = 'msg show err';
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/me/pin', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPin, newPin }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'تعذّر تغيير الرقم');
+        window.location.href = '/';
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'msg show err';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
