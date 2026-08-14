@@ -2,11 +2,12 @@ const express = require('express');
 const auth = require('../auth');
 const { logAction } = require('../audit');
 const { isTestMode } = require('../testMode');
+const { clientIp } = require('../clientIp');
 
 const router = express.Router();
 
 router.post('/api/login', async (req, res) => {
-  const ip = req.ip;
+  const ip = clientIp(req);
   const result = await auth.login(req.body?.pin, ip);
   if (!result.ok) return res.status(401).json({ error: result.error });
 
