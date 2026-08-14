@@ -8,7 +8,13 @@ async function api(method, url, body) {
   });
   let data = null;
   try { data = await res.json(); } catch { /* بدون جسم استجابة */ }
-  if (!res.ok) throw new Error(data?.error || 'حدث خطأ غير متوقع');
+  if (!res.ok) {
+    if (data?.mustChangePin) {
+      window.location.href = '/change-pin';
+      return new Promise(() => {}); // نوقف التنفيذ — الصفحة بتنتقل على أي حال
+    }
+    throw new Error(data?.error || 'حدث خطأ غير متوقع');
+  }
   return data;
 }
 
@@ -31,6 +37,12 @@ function setupLogout() {
     try { await api('POST', '/api/logout'); } catch { /* تجاهل */ }
     window.location.href = '/login';
   });
+
+  const changePinLink = document.createElement('a');
+  changePinLink.href = '/change-pin';
+  changePinLink.textContent = '🔑 تغيير الرقم السري';
+  changePinLink.style.cssText = 'display:block;font-size:12px;color:var(--text-dim);margin-bottom:8px;text-align:center';
+  btn.parentNode.insertBefore(changePinLink, btn);
 }
 
 function highlightActiveNav() {

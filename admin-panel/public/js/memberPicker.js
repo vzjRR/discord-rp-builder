@@ -102,5 +102,13 @@ function createMemberPicker({ mount, mode = 'members', placeholder = 'اكتب �
       selectedId = null;
       results.innerHTML = '';
     },
+    // يعبّي ID يدويًا من برّا (مثلًا من طلب دخول معلّق) بدل ما يدوّر بالاسم
+    setManualId: (id) => {
+      manualMode = true;
+      manualInput.style.display = 'block';
+      input.style.display = 'none';
+      manualToggle.textContent = 'أو دوّر بالاسم';
+      manualInput.value = id;
+    },
   };
 }

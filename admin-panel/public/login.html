@@ -23,6 +23,9 @@
         <div class="msg" id="msg"></div>
       </form>
       <p class="subtitle" style="margin-top:18px">
+        ما عندك رمز؟ <a href="/request-access">اطلب رمز دخول</a>
+      </p>
+      <p class="subtitle" style="margin-top:6px">
         <a href="/install">📱 كيف تثبّت المنصة على جهازك</a>
       </p>
     </div>
@@ -42,7 +45,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'فشل الدخول');
-        window.location.href = '/';
+        window.location.href = data.admin?.mustChangePin ? '/change-pin' : '/';
       } catch (err) {
         msg.textContent = err.message;
         msg.className = 'msg show err';

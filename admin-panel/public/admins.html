@@ -30,6 +30,25 @@
     <h1>إدارة الحسابات</h1>
     <p class="subtitle">هذي الصفحة تظهر لحساب الـ Owner فقط — إنشاء وحذف حسابات دخول للمنصة</p>
 
+    <div class="card" id="requestsCard" style="display:none">
+      <h2>طلبات دخول معلّقة</h2>
+      <table>
+        <thead><tr><th>ID العضو</th><th>ملاحظة</th><th>الوقت</th><th></th></tr></thead>
+        <tbody id="requestsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>رسالة الترحيب بالمنصة</h2>
+      <p class="subtitle">هذي الرسالة تروح تلقائيًا بالخاص لأي عضو تسوّي له حساب. تقدر تعدّلها براحتك — استخدم {name} و{pin} و{platformUrl} وبتتعوّض تلقائيًا.</p>
+      <textarea id="onboardingMsg" rows="10" style="font-family:inherit"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn small" id="saveOnboarding">حفظ</button>
+        <button class="btn small ghost" id="resetOnboarding">رجوع للافتراضي</button>
+      </div>
+      <div class="msg" id="onboardingMsgStatus"></div>
+    </div>
+
     <div class="card">
       <h2>إنشاء حساب جديد</h2>
       <label>اختر العضو من ديسكورد</label>
@@ -70,6 +89,7 @@
 </div>
 <script src="/js/app.js"></script>
 <script src="/js/memberPicker.js"></script>
+<script src="/js/formatToolbar.js"></script>
 <script>
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -84,6 +104,82 @@
         document.getElementById('newName').value = m.label.replace(/\s*\(@.*\)$/, '');
       }
     },
+  });
+
+  // ── طلبات الدخول المعلّقة ──────────────────────────────────────
+  async function loadRequests() {
+    try {
+      const { requests } = await api('GET', '/api/access-requests');
+      const card = document.getElementById('requestsCard');
+      if (!requests.length) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      document.getElementById('requestsBody').innerHTML = requests.map((r) => `
+        <tr>
+          <td>${escapeHtml(r.discordUserId)}</td>
+          <td>${escapeHtml(r.note || '—')}</td>
+          <td class="subtitle">${new Date(r.createdAt).toLocaleString('ar-SA')}</td>
+          <td style="display:flex;gap:8px">
+            <button class="btn small" data-use="${r.discordUserId}">سوّي له حساب</button>
+            <button class="btn small ghost" data-reject="${r.id}">رفض</button>
+          </td>
+        </tr>`).join('');
+
+      document.querySelectorAll('[data-use]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          newMemberPicker.setManualId(btn.dataset.use);
+          document.getElementById('newName').focus();
+          document.getElementById('newName').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+      document.querySelectorAll('[data-reject]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('متأكد تبي ترفض هذا الطلب؟')) return;
+          btn.disabled = true;
+          try {
+            await api('POST', `/api/access-requests/${btn.dataset.reject}/reject`);
+            loadRequests();
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+          }
+        });
+      });
+    } catch { /* تجاهل — الكارد يضل مخفي */ }
+  }
+  loadRequests();
+
+  // ── رسالة الترحيب بالمنصة ─────────────────────────────────────
+  const onboardingTextarea = document.getElementById('onboardingMsg');
+  attachFormatToolbar(onboardingTextarea);
+
+  async function loadOnboardingMessage() {
+    try {
+      const { message } = await api('GET', '/api/admins/onboarding-message');
+      onboardingTextarea.value = message;
+    } catch { /* تجاهل */ }
+  }
+  loadOnboardingMessage();
+
+  document.getElementById('saveOnboarding').addEventListener('click', async () => {
+    const statusEl = document.getElementById('onboardingMsgStatus');
+    try {
+      await api('PUT', '/api/admins/onboarding-message', { message: onboardingTextarea.value });
+      showMsg(statusEl, 'تم الحفظ.', true);
+    } catch (err) {
+      showMsg(statusEl, err.message, false);
+    }
+  });
+
+  document.getElementById('resetOnboarding').addEventListener('click', async () => {
+    if (!confirm('ترجع رسالة الترحيب للنص الافتراضي؟')) return;
+    const statusEl = document.getElementById('onboardingMsgStatus');
+    try {
+      await api('POST', '/api/admins/onboarding-message/reset');
+      await loadOnboardingMessage();
+      showMsg(statusEl, 'تم الرجوع للافتراضي.', true);
+    } catch (err) {
+      showMsg(statusEl, err.message, false);
+    }
   });
 
   document.getElementById('genPin').addEventListener('click', () => {
