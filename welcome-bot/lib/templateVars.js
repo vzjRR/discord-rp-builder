@@ -40,7 +40,9 @@ function buildTemplateVars(o) {
     ticketChannel: mention(o.ticketChannelId, '#create-ticket'),
     ticketChannelUrl: link(o.ticketChannelId, ''),
 
-    inviter: o.inviter ?? 'غير معروف',
+    // ما نقدر نحدد داعي معيّن (رابط عام غير متعقّب، دخول عن طريق Discovery...)
+    // ما يعني إشكال أو مصدر مجهول — الأرجح إنه استخدم رابط دعوة السيرفر العام
+    inviter: o.inviter ?? 'رابط دعوة السيرفر',
   };
 }
 
