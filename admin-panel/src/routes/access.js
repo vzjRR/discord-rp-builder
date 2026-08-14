@@ -7,6 +7,7 @@ const { db } = require('../db');
 const discord = require('../discord');
 const { requireAuth, requireOwner } = require('../auth');
 const { logAction } = require('../audit');
+const { clientIp } = require('../clientIp');
 
 const router = express.Router();
 
@@ -31,10 +32,11 @@ function recordAttempt(ip) {
 }
 
 router.post('/api/access-requests', async (req, res) => {
-  if (isRateLimited(req.ip)) {
+  const ip = clientIp(req);
+  if (isRateLimited(ip)) {
     return res.status(429).json({ error: 'طلبات كثيرة، حاول بعد شوي' });
   }
-  recordAttempt(req.ip);
+  recordAttempt(ip);
 
   const { discordUserId, note } = req.body || {};
   if (!DISCORD_ID_RE.test(String(discordUserId || ''))) {
