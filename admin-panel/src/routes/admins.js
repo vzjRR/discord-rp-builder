@@ -6,22 +6,65 @@ const { testRedirectUserId } = require('../testMode');
 const { publicBaseUrl } = require('../publicUrl');
 const { sendBrandedDM } = require('../messageFormat');
 const tpl = require('../templates');
+const perms = require('../permissions');
 
 const router = express.Router();
 const guard = [requireAuth, requireOwner];
 
 const PIN_RE = /^[0-9]{4,32}$/;
 
+// يُلحق برسالة التعريف: من يستلم حسابًا يحتاج أن يعرف حدوده، وإلا جرّب
+// ما ليس له فظنّ المنصة معطلة.
+function permissionsBlock(isOwner, serialized) {
+  if (isOwner) return '\n\n**صلاحياتك:** كاملة، بما فيها إدارة حسابات المنصة.';
+  const list = perms.parse(serialized) || [];
+  if (!list.length) return '\n\n**صلاحياتك:** لم تُمنح أي صلاحية بعد. راجع المالك.';
+  return `\n\n**صلاحياتك في المنصة:**\n${list.map((k) => `• ${perms.ALL[k]}`).join('\n')}`;
+}
+
 router.get('/api/admins', guard, (req, res) => {
   const rows = db
     .prepare(
       `SELECT id, name, discord_user_id AS discordUserId, is_owner AS isOwner,
-              must_change_pin AS mustChangePin, created_at AS createdAt, last_login_at AS lastLoginAt
+              must_change_pin AS mustChangePin, created_at AS createdAt,
+              last_login_at AS lastLoginAt, permissions
          FROM admins ORDER BY created_at ASC`
     )
     .all()
-    .map((r) => ({ ...r, isOwner: Boolean(r.isOwner), mustChangePin: Boolean(r.mustChangePin) }));
-  res.json({ admins: rows });
+    .map((r) => {
+      const parsed = perms.parse(r.permissions);
+      return {
+        ...r,
+        isOwner: Boolean(r.isOwner),
+        mustChangePin: Boolean(r.mustChangePin),
+        permissions: perms.effective({ isOwner: Boolean(r.isOwner), permissions: parsed }),
+        // حساب أُنشئ قبل الميزة: صلاحياته كاملة ضمنًا ولم يخترها أحد
+        permissionsExplicit: parsed !== null,
+      };
+    });
+  res.json({ admins: rows, available: perms.ALL });
+});
+
+// تعديل صلاحيات حساب — المالك وحده، ولا تُمَسّ صلاحيات حساب مالك
+router.put('/api/admins/:id/permissions', guard, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'معرّف غير صالح' });
+
+  const target = db.prepare('SELECT name, is_owner AS isOwner FROM admins WHERE id = ?').get(id);
+  if (!target) return res.status(404).json({ error: 'الحساب غير موجود' });
+  if (target.isOwner) {
+    return res.status(400).json({ error: 'حساب المالك يملك كل الصلاحيات بطبيعته' });
+  }
+
+  const list = perms.normalize(req.body?.permissions);
+  db.prepare('UPDATE admins SET permissions = ? WHERE id = ?').run(perms.serialize(list), id);
+
+  await logAction(
+    req.admin,
+    'admin.permissions',
+    `عدّل صلاحيات "${target.name}" — ${list.length ? list.map((k) => perms.ALL[k]).join('، ') : 'بلا صلاحيات'}`
+  );
+  res.json({ ok: true, permissions: list });
 });
 
 // ── نصوص رسائل الحسابات (الترحيب وسحب الصلاحية) ────────────────────
@@ -75,18 +118,26 @@ router.get('/api/admins/onboarding-message', guard, (req, res) =>
 );
 
 router.post('/api/admins', guard, async (req, res) => {
-  const { name, pin, isOwner, discordUserId } = req.body || {};
+  const { name, pin, isOwner, discordUserId, permissions: requested } = req.body || {};
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'اسم العضو مطلوب' });
   }
   if (!PIN_RE.test(pin || '')) {
-    return res.status(400).json({ error: 'الرقم السري لازم يكون أرقام فقط، من ٤ إلى ٣٢ رقم' });
+    return res.status(400).json({ error: 'الرقم السري أرقام فقط، من ٤ إلى ٣٢ رقمًا' });
   }
+
+  // المالك يملك كل شيء ضمنًا فلا نخزّن له قائمة. وغيره: ما اختاره المالك،
+  // فإن لم يختر شيئًا فالحدّ الأدنى (اطّلاع فقط) لا صلاحيات كاملة.
+  const granted = isOwner
+    ? null
+    : perms.serialize(Array.isArray(requested) ? requested : perms.DEFAULT_KEYS);
 
   const pinHash = await hashPin(pin);
   const info = db
-    .prepare('INSERT INTO admins (name, pin_hash, is_owner, discord_user_id, must_change_pin) VALUES (?, ?, ?, ?, 1)')
-    .run(name.trim(), pinHash, isOwner ? 1 : 0, discordUserId || null);
+    .prepare(
+      'INSERT INTO admins (name, pin_hash, is_owner, discord_user_id, must_change_pin, permissions) VALUES (?, ?, ?, ?, 1, ?)'
+    )
+    .run(name.trim(), pinHash, isOwner ? 1 : 0, discordUserId || null, granted);
   const row = db
     .prepare('SELECT id, name, discord_user_id AS discordUserId, is_owner AS isOwner, created_at AS createdAt FROM admins WHERE id = ?')
     .get(info.lastInsertRowid);
@@ -108,11 +159,12 @@ router.post('/api/admins', guard, async (req, res) => {
     try {
       await sendBrandedDM(target, {
         title: 'حساب جديد في منصة الإدارة',
-        content: tpl.fillTemplate(tpl.readOnboardingTemplate(), {
-          name: name.trim(),
-          pin,
-          platformUrl: publicBaseUrl(req),
-        }),
+        content:
+          tpl.fillTemplate(tpl.readOnboardingTemplate(), {
+            name: name.trim(),
+            pin,
+            platformUrl: publicBaseUrl(req),
+          }) + permissionsBlock(isOwner, granted),
       });
       dmSent = true;
       await logAction(

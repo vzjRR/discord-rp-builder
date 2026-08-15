@@ -48,7 +48,7 @@ router.get('/api/discord/roles', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('discord/roles:', err.message);
-    res.status(502).json({ error: 'تعذّر جلب الرولات من ديسكورد' });
+    res.status(502).json({ error: 'تعذّر جلب الرتب من ديسكورد' });
   }
 });
 

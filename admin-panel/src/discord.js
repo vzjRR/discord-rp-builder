@@ -197,6 +197,58 @@ async function searchMembers(query) {
   return request('GET', `/guilds/${guildId}/members/search?query=${q}&limit=25`);
 }
 
+// ── رفع المرفقات ─────────────────────────────────────────────────
+// ديسكورد يستقبل الملفات بصيغة multipart لا JSON: وصف الرسالة في حقل
+// payload_json، ثم كل ملف في حقل files[n]، ويربط بينهما فهرس attachments.
+// نبني الطلب يدويًا لأن request() أعلاه مخصّص لـ JSON.
+async function requestMultipart(path, payload, files) {
+  const form = new FormData();
+  form.append(
+    'payload_json',
+    JSON.stringify({
+      ...payload,
+      attachments: files.map((f, i) => ({ id: i, filename: f.filename })),
+    })
+  );
+  files.forEach((f, i) => {
+    form.append(`files[${i}]`, new Blob([f.buffer], { type: f.contentType }), f.filename);
+  });
+
+  // لا نضبط Content-Type بأنفسنا — fetch يضيفه مع حدّ الفصل (boundary)
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bot ${token}` },
+    body: form,
+  });
+
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({}));
+    await new Promise((r) => setTimeout(r, Math.ceil((data.retry_after || 1) * 1000)));
+    return requestMultipart(path, payload, files);
+  }
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    const err = new Error(data?.message || `Discord API error (${res.status})`);
+    err.status = res.status;
+    err.code = data?.code;
+    throw err;
+  }
+  return data;
+}
+
+async function sendChannelMessageWithFiles(channelId, content, files = []) {
+  if (!files.length) return sendChannelMessage(channelId, content);
+  return requestMultipart(`/channels/${channelId}/messages`, { content: content || '' }, files);
+}
+
+async function sendDMWithFiles(userId, content, files = []) {
+  if (!files.length) return sendDM(userId, content);
+  const channel = await request('POST', '/users/@me/channels', { recipient_id: userId });
+  return requestMultipart(`/channels/${channel.id}/messages`, { content: content || '' }, files);
+}
+
 // ── رسائل خاصة / إعلانات ─────────────────────────────────────────
 async function sendDM(userId, content) {
   const channel = await request('POST', '/users/@me/channels', { recipient_id: userId });
@@ -337,6 +389,8 @@ module.exports = {
   listBans,
   sendDM,
   sendChannelMessage,
+  sendChannelMessageWithFiles,
+  sendDMWithFiles,
   sendDMEmbed,
   sendChannelEmbed,
   kickMember,

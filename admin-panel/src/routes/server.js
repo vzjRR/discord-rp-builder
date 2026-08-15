@@ -4,13 +4,14 @@
 
 const express = require('express');
 const discord = require('../discord');
+const { requirePermission } = require('../permissions');
 const { requireAuth } = require('../auth');
 const { logAction } = require('../audit');
 
 const router = express.Router();
 
 // ── قنوات / كاتجوريز ──────────────────────────────────────────────
-router.post('/api/server/channels', requireAuth, async (req, res) => {
+router.post('/api/server/channels', requireAuth, requirePermission('server.manage'), async (req, res) => {
   const { name, type, parentId, topic } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'اسم القناة مطلوب' });
   const channelType = [0, 2, 4, 5].includes(Number(type)) ? Number(type) : 0;
@@ -21,11 +22,11 @@ router.post('/api/server/channels', requireAuth, async (req, res) => {
     res.json({ channel });
   } catch (err) {
     console.error('server/channels create:', err.message);
-    res.status(502).json({ error: 'تعذّر إنشاء القناة (تأكد إن البوت عنده صلاحية Manage Channels)' });
+    res.status(502).json({ error: 'تعذّر إنشاء القناة — تأكد من أن البوت يملك صلاحية Manage Channels' });
   }
 });
 
-router.patch('/api/server/channels/:id', requireAuth, async (req, res) => {
+router.patch('/api/server/channels/:id', requireAuth, requirePermission('server.manage'), async (req, res) => {
   const { name, topic, parentId, position } = req.body || {};
   try {
     const channel = await discord.updateChannel(req.params.id, { name, topic, parentId, position });
@@ -37,7 +38,7 @@ router.patch('/api/server/channels/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/api/server/channels/:id', requireAuth, async (req, res) => {
+router.delete('/api/server/channels/:id', requireAuth, requirePermission('server.manage'), async (req, res) => {
   try {
     await discord.deleteChannel(req.params.id);
     await logAction(req.admin, 'server.channel_delete', `حذف قناة ${req.params.id}`);
@@ -53,9 +54,9 @@ router.get('/api/server/permission-options', requireAuth, (req, res) => {
   res.json({ permissions: Object.keys(discord.PERMISSION_BITS) });
 });
 
-router.post('/api/server/roles', requireAuth, async (req, res) => {
+router.post('/api/server/roles', requireAuth, requirePermission('server.manage'), async (req, res) => {
   const { name, color, permissions, hoist, mentionable } = req.body || {};
-  if (!name || !String(name).trim()) return res.status(400).json({ error: 'اسم الرول مطلوب' });
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'اسم الرتبة مطلوب' });
 
   try {
     const role = await discord.createRole({ name: String(name).trim(), color, permissions, hoist, mentionable });
@@ -63,11 +64,11 @@ router.post('/api/server/roles', requireAuth, async (req, res) => {
     res.json({ role });
   } catch (err) {
     console.error('server/roles create:', err.message);
-    res.status(502).json({ error: 'تعذّر إنشاء الرول (تأكد إن البوت عنده صلاحية Manage Roles)' });
+    res.status(502).json({ error: 'تعذّر إنشاء الرتبة — تأكد من أن البوت يملك صلاحية Manage Roles' });
   }
 });
 
-router.patch('/api/server/roles/:id', requireAuth, async (req, res) => {
+router.patch('/api/server/roles/:id', requireAuth, requirePermission('server.manage'), async (req, res) => {
   const { name, color, permissions, hoist, mentionable } = req.body || {};
   try {
     const role = await discord.updateRole(req.params.id, { name, color, permissions, hoist, mentionable });
@@ -75,18 +76,18 @@ router.patch('/api/server/roles/:id', requireAuth, async (req, res) => {
     res.json({ role });
   } catch (err) {
     console.error('server/roles update:', err.message);
-    res.status(502).json({ error: 'تعذّر تعديل الرول (تأكد إن رول البوت أعلى من هذا الرول بالترتيب)' });
+    res.status(502).json({ error: 'تعذّر تعديل الرتبة — تأكد من أن رتبة البوت أعلى منها في الترتيب' });
   }
 });
 
-router.delete('/api/server/roles/:id', requireAuth, async (req, res) => {
+router.delete('/api/server/roles/:id', requireAuth, requirePermission('server.manage'), async (req, res) => {
   try {
     await discord.deleteRole(req.params.id);
     await logAction(req.admin, 'server.role_delete', `حذف رول ${req.params.id}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('server/roles delete:', err.message);
-    res.status(502).json({ error: 'تعذّر حذف الرول' });
+    res.status(502).json({ error: 'تعذّر حذف الرتبة' });
   }
 });
 

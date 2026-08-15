@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حالة السيرفر — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
+    <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
+    <a class="nav-link" href="/templates">الرسائل الثابتة</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>حالة السيرفر</h1>
+    <p class="subtitle">
+      نظرة حيّة على السيرفر: من المتصل الآن، ومن انضمّ حديثًا، ومن غادر،
+      وترتيب الأعضاء بحسب التفاعل.
+    </p>
+
+    <div class="stat-row" id="statRow"></div>
+
+    <div class="card" id="trackingNote" style="display:none">
+      <p class="subtitle" style="margin:0" id="trackingNoteText"></p>
+    </div>
+
+    <div class="card">
+      <h2>أحدث المنضمّين</h2>
+      <table>
+        <thead><tr><th></th><th>العضو</th><th>تاريخ الانضمام</th></tr></thead>
+        <tbody id="newestBody"><tr><td colspan="3" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>آخر المغادرين</h2>
+      <table>
+        <thead><tr><th></th><th>العضو</th><th>تاريخ المغادرة</th></tr></thead>
+        <tbody id="leaversBody"><tr><td colspan="3" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>الأكثر تفاعلًا <span class="subtitle" id="activityWindow"></span></h2>
+      <table>
+        <thead><tr><th>#</th><th>العضو</th><th>عدد الرسائل</th></tr></thead>
+        <tbody id="mostBody"><tr><td colspan="3" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>الأقل تفاعلًا</h2>
+      <p class="subtitle">
+        من بين من كتب رسالة واحدة على الأقل خلال المدة. من لم يكتب شيئًا لا
+        يظهر هنا، إذ لا نملك عنه بيانًا نقيسه.
+      </p>
+      <table>
+        <thead><tr><th>#</th><th>العضو</th><th>عدد الرسائل</th></tr></thead>
+        <tbody id="leastBody"><tr><td colspan="3" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <button class="btn small ghost" id="refresh">تحديث الآن</button>
+
+    <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+  const fmtDate = (s) => (s ? new Date(s).toLocaleString('ar-SA') : '—');
+  const nf = new Intl.NumberFormat('ar-SA');
+
+  function memberCell(m) {
+    const name = escapeHtml(m.displayName || m.username || m.userId);
+    const handle = m.username ? `<div class="subtitle">@${escapeHtml(m.username)}</div>` : '';
+    return `<div>${name}${handle}</div>`;
+  }
+
+  function avatarCell(m) {
+    return m.avatar
+      ? `<img src="${escapeHtml(m.avatar)}" alt="" width="32" height="32" style="border-radius:50%;display:block">`
+      : '';
+  }
+
+  function fillMembers(bodyId, rows, dateKey, emptyText) {
+    const body = document.getElementById(bodyId);
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="3" class="subtitle">${escapeHtml(emptyText)}</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map((m) => `
+      <tr>
+        <td style="width:44px">${avatarCell(m)}</td>
+        <td>${memberCell(m)}</td>
+        <td class="subtitle">${fmtDate(m[dateKey])}</td>
+      </tr>`).join('');
+  }
+
+  function fillRanking(bodyId, rows, emptyText) {
+    const body = document.getElementById(bodyId);
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="3" class="subtitle">${escapeHtml(emptyText)}</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map((m, i) => `
+      <tr>
+        <td class="subtitle" style="width:36px">${nf.format(i + 1)}</td>
+        <td>${memberCell(m)}</td>
+        <td>${nf.format(m.messages)}</td>
+      </tr>`).join('');
+  }
+
+  async function load() {
+    const btn = document.getElementById('refresh');
+    btn.disabled = true;
+    try {
+      const d = await api('GET', '/api/status');
+
+      document.getElementById('statRow').innerHTML = `
+        <div class="stat"><div class="stat-value">${d.onlineCount === null ? '—' : nf.format(d.onlineCount)}</div><div class="stat-label">متصل الآن</div></div>
+        <div class="stat"><div class="stat-value">${nf.format(d.memberCount)}</div><div class="stat-label">إجمالي الأعضاء</div></div>
+        <div class="stat"><div class="stat-value">${nf.format(d.humanCount)}</div><div class="stat-label">أعضاء (بلا بوتات)</div></div>
+        <div class="stat"><div class="stat-value">${nf.format(d.botCount)}</div><div class="stat-label">بوتات</div></div>`;
+
+      fillMembers('newestBody', d.newestMembers, 'joinedAt', 'لا يوجد أعضاء بعد');
+      fillMembers('leaversBody', d.recentLeavers, 'at', 'لم يغادر أحد منذ بدء التسجيل');
+
+      document.getElementById('activityWindow').textContent = `— خلال ${nf.format(d.activity.days)} يومًا الماضية`;
+      fillRanking('mostBody', d.activity.most, 'لم تُسجَّل رسائل بعد');
+      fillRanking('leastBody', d.activity.least, 'لم تُسجَّل رسائل بعد');
+
+      // بيانات المغادرة والتفاعل تبدأ من لحظة تشغيل التسجيل لا من عمر
+      // السيرفر — نقولها صراحة كي لا تُقرأ الجداول الفارغة على غير وجهها.
+      const note = document.getElementById('trackingNote');
+      const text = document.getElementById('trackingNoteText');
+      note.style.display = 'block';
+      text.textContent = d.trackingSince
+        ? `المغادرات وأرقام التفاعل مُسجَّلة منذ ${fmtDate(d.trackingSince)} — وهي لا تشمل ما وقع قبل ذلك، لأن ديسكورد لا يحفظه.`
+        : 'لم يُسجَّل شيء بعد. المغادرات وأرقام التفاعل تُحتسب من لحظة تشغيل هذه الميزة فصاعدًا، فستظهر تباعًا مع حركة السيرفر.';
+    } catch (err) {
+      document.getElementById('statRow').innerHTML =
+        `<div class="msg show err" style="width:100%">${escapeHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('refresh').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>

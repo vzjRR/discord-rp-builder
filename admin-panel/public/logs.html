@@ -16,8 +16,9 @@
     <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
-    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
     <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
     <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
@@ -42,8 +43,8 @@
 
     <div class="card">
       <table>
-        <thead><tr><th>الوقت</th><th>مين</th><th>الفعل</th><th>التفاصيل</th></tr></thead>
-        <tbody id="logsBody"><tr><td colspan="4" class="subtitle">جارِ التحميل…</td></tr></tbody>
+        <thead><tr><th>الوقت</th><th>المنفِّذ</th><th>الإجراء</th><th>التفاصيل</th></tr></thead>
+        <tbody id="logsBody"><tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr></tbody>
       </table>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
         <button class="btn small ghost" id="prevPage">السابق</button>
@@ -61,12 +62,12 @@
 
   const ACTION_LABELS = {
     login: 'تسجيل دخول', logout: 'تسجيل خروج',
-    'message.dm': 'رسالة خاصة', 'message.announce': 'إعلان بقناة',
-    'moderation.kick': 'طرد', 'moderation.ban': 'حظر', 'moderation.unban': 'فك حظر',
-    'moderation.timeout': 'تايم أوت', 'moderation.warn': 'تحذير',
-    'moderation.purge': 'حذف رسائل', 'moderation.lock': 'قفل قناة', 'moderation.unlock': 'فتح قناة',
-    'admin.create': 'إنشاء حساب', 'admin.revoke': 'حذف حساب', 'admin.onboard_dm': 'رسالة تعريف',
-    'admin.revoke_dm': 'إشعار سحب صلاحية', 'admin.change_pin': 'تغيير رقم سري',
+    'message.dm': 'رسالة خاصة', 'message.announce': 'إعلان في قناة',
+    'moderation.kick': 'طرد', 'moderation.ban': 'حظر', 'moderation.unban': 'رفع حظر',
+    'moderation.timeout': 'إسكات مؤقت', 'moderation.warn': 'تحذير',
+    'moderation.purge': 'حذف رسائل بالجملة', 'moderation.lock': 'قفل قناة', 'moderation.unlock': 'فتح قناة',
+    'admin.create': 'إنشاء حساب', 'admin.revoke': 'حذف حساب', 'admin.onboard_dm': 'رسالة التعريف',
+    'admin.revoke_dm': 'إشعار سحب صلاحية', 'admin.change_pin': 'تغيير الرقم السري',
     'server.channel_create': 'إنشاء قناة', 'server.channel_update': 'تعديل قناة', 'server.channel_delete': 'حذف قناة',
     'server.role_create': 'إنشاء رتبة', 'server.role_update': 'تعديل رتبة', 'server.role_delete': 'حذف رتبة',
     'templates.update': 'تعديل رسالة ثابتة', 'template.update': 'تعديل رسالة ثابتة',
@@ -84,7 +85,7 @@
   (async () => {
     try {
       const { admin } = await api('GET', '/api/me');
-      if (admin.isOwner) document.getElementById('clearCard').style.display = 'block';
+      if (admin.isمالك) document.getElementById('clearCard').style.display = 'block';
     } catch { /* تجاهل */ }
   })();
 

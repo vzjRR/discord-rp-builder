@@ -16,14 +16,14 @@
       <div class="login-card" style="text-align:center">
         <img src="/icons/icon-192.png" alt="Enclave RP">
         <h1>تثبيت منصة الإدارة</h1>
-        <p class="subtitle">اختر طريقة الاستخدام اللي تناسبك</p>
+        <p class="subtitle">اختر طريقة الاستخدام التي تناسبك</p>
       </div>
 
       <div class="install-choice">
         <div class="card" id="choiceInstall">
           <div class="icon">📲</div>
           <h2 style="margin:0 0 6px">ثبّتها كتطبيق</h2>
-          <p class="subtitle" style="margin:0">أيقونة على شاشتك الرئيسية، تفتح زي أي تطبيق ثاني</p>
+          <p class="subtitle" style="margin:0">أيقونة في شاشتك الرئيسية، تفتح كأي تطبيق آخر</p>
         </div>
         <div class="card" id="choiceBrowser">
           <div class="icon">🌐</div>
@@ -59,7 +59,7 @@
 
   function stepsHtml() {
     if (isStandalone) {
-      return { title: 'مثبّتة عندك بالفعل ✅', body: '<p>تفتحها من نفس الأيقونة اللي بشاشتك الرئيسية.</p>', showBtn: false };
+      return { title: 'مثبّتة عندك بالفعل ✅', body: '<p>افتحها من الأيقونة نفسها في شاشتك الرئيسية.</p>', showBtn: false };
     }
     if (isIOS && isSafari) {
       return {
@@ -67,7 +67,7 @@
         body: `<ol>
           <li>اضغط زر <b>المشاركة</b> (المربع وفيه سهم للأعلى ⬆️) بأسفل الشاشة.</li>
           <li>مرّر لين تلقى <b>"Add to Home Screen" / إضافة إلى الشاشة الرئيسية</b>.</li>
-          <li>اضغط <b>إضافة</b> بأعلى يمين الشاشة.</li>
+          <li>اضغط <b>إضافة</b> أعلى يمين الشاشة.</li>
         </ol>`,
         showBtn: false,
       };
@@ -75,7 +75,7 @@
     if (isIOS && !isSafari) {
       return {
         title: 'لازم Safari للتثبيت',
-        body: '<p>على آيفون/آيباد، التثبيت يشتغل بس من متصفح Safari. افتح هذا الرابط بـ Safari وكرر الخطوات.</p>',
+        body: '<p>على آيفون وآيباد لا يعمل التثبيت إلا من متصفح Safari. افتح هذا الرابط في Safari ثم أعد الخطوات.</p>',
         showBtn: false,
       };
     }

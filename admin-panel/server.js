@@ -13,6 +13,7 @@ const cookieParser = require('cookie-parser');
 const { migrate } = require('./src/db');
 const auth = require('./src/auth');
 const { isFromCloudflare } = require('./src/clientIp');
+const permissions = require('./src/permissions');
 
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'GUILD_ID', 'SESSION_SECRET'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
@@ -67,7 +68,10 @@ app.use((req, res, next) => {
   // تمنع تحميل/تنفيذ أي شيء من دومين غريب.
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' https://cdn.discordapp.com data:; " +
+    // blob: لازمة لمعاينة المرفقات قبل رفعها (عناوين كائنات محلية في
+    // المتصفح، لا تُحمَّل من أي خادم)
+    "default-src 'self'; img-src 'self' https://cdn.discordapp.com data: blob:; " +
+      "media-src 'self' blob:; " +
       "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
       "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';"
   );
@@ -114,7 +118,7 @@ const FRESH_PIN_EXEMPT_PATHS = new Set([
 app.use((req, res, next) => {
   if (req.admin?.mustChangePin && !FRESH_PIN_EXEMPT_PATHS.has(req.path)) {
     if (req.path.startsWith('/api/')) {
-      return res.status(403).json({ error: 'لازم تغيّر رقمك السري أول', mustChangePin: true });
+      return res.status(403).json({ error: 'عليك تغيير رقمك السري أولًا', mustChangePin: true });
     }
     return res.redirect('/change-pin');
   }
@@ -133,6 +137,10 @@ app.use(require('./src/routes/templates'));
 app.use(require('./src/routes/access'));
 app.use(require('./src/routes/preview'));
 app.use(require('./src/routes/pinReset'));
+app.use(require('./src/routes/status'));
+
+// أخطاء رفع المرفقات لها رسائل خاصة — قبل معالج الأخطاء العام
+app.use(require('./src/uploads').uploadErrorHandler);
 
 // ── صفحات الواجهة (كل وحدة محمية بحسب الحاجة) ────────────────────
 const page = (name) => path.join(__dirname, 'public', name);
@@ -160,12 +168,24 @@ app.get('/forgot-pin', (req, res) => {
 // تغيير الرقم السري — تحتاج تسجيل دخول بس، تشتغل حتى لو mustChangePin
 app.get('/change-pin', auth.requireAuth, (req, res) => res.sendFile(page('change-pin.html')));
 
+// الصفحات محجوبة بحسب صلاحيات الحساب — والمسارات خلفها محجوبة أيضًا،
+// فإخفاء الصفحة تيسير للمستخدم لا اعتماد أمني عليه.
+const anyOf = permissions.requireAnyPermission;
+
 app.get('/', auth.requireAuth, (req, res) => res.sendFile(page('dashboard.html')));
-app.get('/messages', auth.requireAuth, (req, res) => res.sendFile(page('messages.html')));
-app.get('/moderation', auth.requireAuth, (req, res) => res.sendFile(page('moderation.html')));
-app.get('/server', auth.requireAuth, (req, res) => res.sendFile(page('server.html')));
-app.get('/templates', auth.requireAuth, (req, res) => res.sendFile(page('templates.html')));
-app.get('/logs', auth.requireAuth, (req, res) => res.sendFile(page('logs.html')));
+app.get('/messages', auth.requireAuth, anyOf(['messages.dm', 'messages.announce']), (req, res) =>
+  res.sendFile(page('messages.html'))
+);
+app.get(
+  '/moderation',
+  auth.requireAuth,
+  anyOf(['moderation.kick', 'moderation.ban', 'moderation.timeout', 'moderation.warn', 'moderation.purge', 'moderation.lock']),
+  (req, res) => res.sendFile(page('moderation.html'))
+);
+app.get('/server', auth.requireAuth, anyOf(['server.manage']), (req, res) => res.sendFile(page('server.html')));
+app.get('/status', auth.requireAuth, anyOf(['status.view']), (req, res) => res.sendFile(page('status.html')));
+app.get('/templates', auth.requireAuth, anyOf(['templates.manage']), (req, res) => res.sendFile(page('templates.html')));
+app.get('/logs', auth.requireAuth, anyOf(['logs.view']), (req, res) => res.sendFile(page('logs.html')));
 app.get('/admins', auth.requireAuth, auth.requireOwner, (req, res) => res.sendFile(page('admins.html')));
 
 // ── 404 + معالج أخطاء عام — ما نكشف أي تفاصيل داخلية للمستخدم ────
@@ -173,8 +193,13 @@ app.use((req, res) => res.status(404).json({ error: 'غير موجود' }));
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // جسم طلب مشوّه خطأ في الطلب لا في الخادم؛ نرد ٤٠٠ لا ٥٠٠ وما نسجّله
+  // كخطأ غير متوقع، وإلا امتلأ السجل بضجيج يخفي الأعطال الحقيقية.
+  if (err?.type === 'entity.parse.failed' || err?.status === 400) {
+    return res.status(400).json({ error: 'صيغة الطلب غير صالحة' });
+  }
   console.error('❌ خطأ غير متوقع:', err);
-  res.status(500).json({ error: 'حدث خطأ، حاول مرة ثانية' });
+  res.status(500).json({ error: 'وقع خطأ، أعد المحاولة' });
 });
 
 const PORT = process.env.PORT || 3000;

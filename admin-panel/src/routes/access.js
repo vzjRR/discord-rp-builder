@@ -34,13 +34,13 @@ function recordAttempt(ip) {
 router.post('/api/access-requests', async (req, res) => {
   const ip = clientIp(req);
   if (isRateLimited(ip)) {
-    return res.status(429).json({ error: 'طلبات كثيرة، حاول بعد شوي' });
+    return res.status(429).json({ error: 'طلبات كثيرة، أعد المحاولة بعد قليل' });
   }
   recordAttempt(ip);
 
   const { discordUserId, note } = req.body || {};
   if (!DISCORD_ID_RE.test(String(discordUserId || ''))) {
-    return res.status(400).json({ error: 'اكتب ID حساب ديسكورد صحيح' });
+    return res.status(400).json({ error: 'اكتب معرّف حساب ديسكورد صحيحًا' });
   }
   const cleanNote = note ? String(note).trim().slice(0, 300) : null;
 
@@ -84,7 +84,7 @@ router.post('/api/access-requests/:id/reject', requireAuth, requireOwner, async 
       "UPDATE access_requests SET status = 'rejected', resolved_at = datetime('now'), resolved_by_admin_id = ? WHERE id = ? AND status = 'pending'"
     )
     .run(req.admin.id, id);
-  if (info.changes === 0) return res.status(404).json({ error: 'الطلب غير موجود أو انسوى فيه إجراء قبل كذا' });
+  if (info.changes === 0) return res.status(404).json({ error: 'الطلب غير موجود، أو نُفِّذ فيه إجراء من قبل' });
 
   await logAction(req.admin, 'access_request.reject', `رفض طلب دخول (#${id})`);
   res.json({ ok: true });

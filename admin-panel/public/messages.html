@@ -16,8 +16,9 @@
     <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
-    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
     <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
     <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
@@ -28,19 +29,19 @@
   </nav>
   <main class="main">
     <h1>الرسائل والإعلانات</h1>
-    <p class="subtitle">رسائل خاصة للأعضاء أو إعلانات داخل قنوات السيرفر</p>
+    <p class="subtitle">رسائل خاصة إلى الأعضاء، أو إعلانات تُنشر في قنوات السيرفر</p>
 
     <div class="card">
-      <h2>رسالة خاصة (DM)</h2>
+      <h2>رسالة خاصة</h2>
       <label>الوجهة</label>
       <div class="radio-group">
         <label><input type="radio" name="dmMode" value="all" checked> كل الأعضاء</label>
-        <label><input type="radio" name="dmMode" value="role"> رول معيّن</label>
-        <label><input type="radio" name="dmMode" value="user"> عضو محدد</label>
+        <label><input type="radio" name="dmMode" value="role"> رتبة معيّنة</label>
+        <label><input type="radio" name="dmMode" value="user"> عضو بعينه</label>
       </div>
 
       <div id="dmRoleField" style="display:none">
-        <label>الرول</label>
+        <label>الرتبة</label>
         <select id="dmRole"></select>
       </div>
       <div id="dmUserField" style="display:none">
@@ -49,17 +50,17 @@
       </div>
 
       <label>نص الرسالة</label>
-      <textarea id="dmContent" placeholder="اكتب الرسالة هنا..."></textarea>
+      <textarea id="dmContent" placeholder="اكتب الرسالة هنا…"></textarea>
       <button class="btn" id="dmSend">إرسال</button>
       <div class="msg" id="dmMsg"></div>
     </div>
 
     <div class="card">
-      <h2>إعلان بقناة</h2>
+      <h2>إعلان في قناة</h2>
       <label>القناة</label>
       <select id="announceChannel"></select>
       <label>نص الإعلان</label>
-      <textarea id="announceContent" placeholder="اكتب الإعلان هنا..."></textarea>
+      <textarea id="announceContent" placeholder="اكتب الإعلان هنا…"></textarea>
       <button class="btn" id="announceSend">نشر الإعلان</button>
       <div class="msg" id="announceMsg"></div>
     </div>
@@ -70,9 +71,14 @@
 <script src="/js/app.js"></script>
 <script src="/js/memberPicker.js"></script>
 <script src="/js/formatToolbar.js"></script>
+<script src="/js/attachments.js"></script>
 <script>
   attachFormatToolbar(document.getElementById('dmContent'));
   attachFormatToolbar(document.getElementById('announceContent'));
+
+  // مرفقات: صور وفيديو وملفات — بالزر أو بالسحب أو باللصق
+  const dmFiles = attachUploader(document.getElementById('dmContent'));
+  const announceFiles = attachUploader(document.getElementById('announceContent'));
 
   const dmUserPicker = createMemberPicker({ mount: document.getElementById('dmUserPicker'), mode: 'members' });
 
@@ -103,14 +109,17 @@
     const userId = dmUserPicker.getId();
     const msgEl = document.getElementById('dmMsg');
     const btn = document.getElementById('dmSend');
-    if (!content) return showMsg(msgEl, 'اكتب نص الرسالة أولًا', false);
-    if (mode === 'user' && !userId) return showMsg(msgEl, 'اختر عضو أولًا', false);
+    const files = dmFiles.files();
+    if (!content && !files.length) return showMsg(msgEl, 'اكتب نص الرسالة أو أرفق ملفًا', false);
+    if (mode === 'user' && !userId) return showMsg(msgEl, 'اختر العضو أولًا', false);
 
     btn.disabled = true;
+    if (files.length) showMsg(msgEl, 'جارٍ رفع المرفقات…', true);
     try {
-      const data = await api('POST', '/api/messages/dm', { mode, roleId, userId, content });
-      showMsg(msgEl, `بدأ الإرسال لـ ${data.targetCount} مستلم${data.testMode ? ' (وضع تجربة — كلها راحت لعضو التجربة)' : ''}. تابع النتيجة بسجل النشاط.`, true);
+      const data = await postWithAttachments('/api/messages/dm', { mode, roleId, userId, content }, files);
+      showMsg(msgEl, `بدأ الإرسال إلى ${data.targetCount} مستلمًا${data.testMode ? ' (وضع تجربة — حُوّلت جميعها إلى عضو التجربة)' : ''}. تابع النتيجة في سجل النشاط.`, true);
       document.getElementById('dmContent').value = '';
+      dmFiles.clear();
     } catch (err) {
       showMsg(msgEl, err.message, false);
     } finally {
@@ -123,13 +132,16 @@
     const content = document.getElementById('announceContent').value.trim();
     const msgEl = document.getElementById('announceMsg');
     const btn = document.getElementById('announceSend');
-    if (!content) return showMsg(msgEl, 'اكتب نص الإعلان أولًا', false);
+    const files = announceFiles.files();
+    if (!content && !files.length) return showMsg(msgEl, 'اكتب نص الإعلان أو أرفق ملفًا', false);
 
     btn.disabled = true;
+    if (files.length) showMsg(msgEl, 'جارٍ رفع المرفقات…', true);
     try {
-      const data = await api('POST', '/api/messages/announce', { channelId, content });
-      showMsg(msgEl, data.testMode ? 'تم الإرسال (وضع تجربة — راح لعضو التجربة بدل القناة).' : 'تم نشر الإعلان.', true);
+      const data = await postWithAttachments('/api/messages/announce', { channelId, content }, files);
+      showMsg(msgEl, data.testMode ? 'أُرسل (وضع تجربة — ذهب إلى عضو التجربة بدل القناة).' : 'نُشر الإعلان.', true);
       document.getElementById('announceContent').value = '';
+      announceFiles.clear();
     } catch (err) {
       showMsg(msgEl, err.message, false);
     } finally {
