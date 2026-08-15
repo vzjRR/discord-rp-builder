@@ -6,6 +6,7 @@ const { hashPin, requireAuth, requireOwner } = require('../auth');
 const { logAction } = require('../audit');
 const discord = require('../discord');
 const { testRedirectUserId } = require('../testMode');
+const { publicBaseUrl } = require('../publicUrl');
 
 const router = express.Router();
 const guard = [requireAuth, requireOwner];
@@ -115,12 +116,7 @@ router.post('/api/admins', guard, async (req, res) => {
   if (discordUserId) {
     const test = testRedirectUserId();
     const target = test || discordUserId;
-    // الدومين الخاص يمر عبر Cloudflare Worker يعيد كتابة الـ Host لدومين
-    // الاستضافة، فـ req.get('host') يعطينا دومين الاستضافة الخام — وهذا آخر
-    // شي نبي نرسله للأدمن الجديد. الترتيب: المتغيّر الصريح، ثم X-Forwarded-Host
-    // اللي يضبطه الـ Worker (req.hostname يقرأه مع trust proxy)، وأخيرًا الطلب.
-    const platformUrl =
-      process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.hostname || req.get('host')}`;
+    const platformUrl = publicBaseUrl(req);
     const messageTemplate = readOnboardingOverride() ?? DEFAULT_ONBOARDING_MESSAGE;
     try {
       await discord.sendDM(target, fillTemplate(messageTemplate, { name: name.trim(), pin, platformUrl }));
