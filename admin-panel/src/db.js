@@ -50,7 +50,22 @@ function migrate() {
       resolved_by_admin_id INTEGER REFERENCES admins(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS pin_resets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admin_id INTEGER NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+      code_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      used_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
+    CREATE INDEX IF NOT EXISTS idx_pin_resets_admin ON pin_resets(admin_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(status, created_at DESC);
   `);
@@ -62,6 +77,13 @@ function migrate() {
   }
   if (!adminCols.includes('must_change_pin')) {
     db.exec('ALTER TABLE admins ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // جلسة نشأت عن استرجاع رقم سري منسي: صاحبها لا يعرف رقمه الحالي، فيُسمح
+  // لها وحدها بوضع رقم جديد دون طلب القديم — ولا تفعل شيئًا سوى ذلك.
+  const sessionCols = db.prepare('PRAGMA table_info(sessions)').all().map((c) => c.name);
+  if (!sessionCols.includes('via_recovery')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN via_recovery INTEGER NOT NULL DEFAULT 0');
   }
 }
 
