@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Moderation — Enclave Admin</title>
+<title>الإشراف — Enclave Admin</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/icons/icon-32.png">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
@@ -16,8 +16,9 @@
     <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
-    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
     <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
     <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
@@ -27,7 +28,7 @@
     </div>
   </nav>
   <main class="main">
-    <h1>Moderation</h1>
+    <h1>الإشراف</h1>
     <p class="subtitle">إجراءات الإشراف على الأعضاء والقنوات</p>
 
     <div class="card">
@@ -39,7 +40,7 @@
 
       <div class="row" style="margin-top:16px">
         <div>
-          <label style="margin-top:0">مدة التايم أوت (دقايق، 0 = رفع)</label>
+          <label style="margin-top:0">مدة الإسكات مؤقت (دقايق، 0 = رفع)</label>
           <input type="number" id="timeoutMinutes" value="60" min="0">
         </div>
         <div>
@@ -50,7 +51,7 @@
 
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">
         <button class="btn small" data-action="warn">تحذير</button>
-        <button class="btn small" data-action="timeout">تايم أوت</button>
+        <button class="btn small" data-action="timeout">إسكات مؤقت</button>
         <button class="btn small ghost" data-action="kick">طرد</button>
         <button class="btn small danger" data-action="ban">حظر</button>
       </div>
@@ -58,7 +59,7 @@
     </div>
 
     <div class="card">
-      <h2>فك حظر</h2>
+      <h2>رفع حظر</h2>
       <label>العضو المحظور</label>
       <div id="banPicker"></div>
       <button class="btn small ghost" id="unbanBtn" style="margin-top:16px">فك الحظر</button>

@@ -11,6 +11,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { register } = require('./lib/welcome');
+const activityTracker = require('./lib/activityTracker');
 
 const token = process.env.DISCORD_TOKEN;
 const guildId = process.env.GUILD_ID;
@@ -25,10 +26,15 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildInvites,
+    // لعدّ رسائل الأعضاء في صفحة "حالة السيرفر". نحتاج وصول الحدث فقط ولا
+    // نقرأ نص الرسالة (ذلك يحتاج MessageContent وهي صلاحية مميّزة أخرى).
+    GatewayIntentBits.GuildMessages,
   ],
 });
 
 register(client);
+// تسجيل الانضمام والمغادرة والنشاط — مصدر بيانات صفحة حالة السيرفر بالمنصة
+activityTracker.register(client, guildId);
 
 client.once('ready', async () => {
   console.log(`✅ بوت الترحيب متصل كـ ${client.user.tag}`);

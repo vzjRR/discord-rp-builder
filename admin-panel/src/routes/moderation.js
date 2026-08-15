@@ -1,6 +1,7 @@
 const express = require('express');
 const discord = require('../discord');
 const { requireAuth } = require('../auth');
+const { requirePermission } = require('../permissions');
 const { logAction } = require('../audit');
 const { testRedirectUserId } = require('../testMode');
 
@@ -11,9 +12,9 @@ function reasonOf(req) {
   return r && String(r).trim() ? String(r).trim() : `عبر منصة الإدارة — ${req.admin.name}`;
 }
 
-router.post('/api/moderation/kick', requireAuth, async (req, res) => {
+router.post('/api/moderation/kick', requireAuth, requirePermission('moderation.kick'), async (req, res) => {
   const { userId } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'اكتب ID العضو' });
+  if (!userId) return res.status(400).json({ error: 'اكتب معرّف العضو' });
   try {
     await discord.kickMember(userId, reasonOf(req));
     await logAction(req.admin, 'moderation.kick', `طرد العضو ${userId} — ${reasonOf(req)}`);
@@ -24,9 +25,9 @@ router.post('/api/moderation/kick', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/api/moderation/ban', requireAuth, async (req, res) => {
+router.post('/api/moderation/ban', requireAuth, requirePermission('moderation.ban'), async (req, res) => {
   const { userId, deleteMessageDays } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'اكتب ID العضو' });
+  if (!userId) return res.status(400).json({ error: 'اكتب معرّف العضو' });
   const days = Math.min(Math.max(Number(deleteMessageDays) || 0, 0), 7);
   try {
     await discord.banMember(userId, { reason: reasonOf(req), deleteMessageSeconds: days * 86400 });
@@ -38,22 +39,22 @@ router.post('/api/moderation/ban', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/api/moderation/unban', requireAuth, async (req, res) => {
+router.post('/api/moderation/unban', requireAuth, requirePermission('moderation.ban'), async (req, res) => {
   const { userId } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'اكتب ID العضو' });
+  if (!userId) return res.status(400).json({ error: 'اكتب معرّف العضو' });
   try {
     await discord.unbanMember(userId, reasonOf(req));
     await logAction(req.admin, 'moderation.unban', `فك حظر العضو ${userId}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('moderation/unban:', err.message);
-    res.status(502).json({ error: 'تعذّر فك الحظر (تأكد إن الـ ID محظور فعلًا)' });
+    res.status(502).json({ error: 'تعذّر رفع الحظر — تأكد من أن هذا المعرّف محظور فعلًا' });
   }
 });
 
-router.post('/api/moderation/timeout', requireAuth, async (req, res) => {
+router.post('/api/moderation/timeout', requireAuth, requirePermission('moderation.timeout'), async (req, res) => {
   const { userId, minutes } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'اكتب ID العضو' });
+  if (!userId) return res.status(400).json({ error: 'اكتب معرّف العضو' });
   const mins = Number(minutes) || 0;
   try {
     await discord.timeoutMember(userId, mins, reasonOf(req));
@@ -69,9 +70,9 @@ router.post('/api/moderation/timeout', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/api/moderation/warn', requireAuth, async (req, res) => {
+router.post('/api/moderation/warn', requireAuth, requirePermission('moderation.warn'), async (req, res) => {
   const { userId, reason } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'اكتب ID العضو' });
+  if (!userId) return res.status(400).json({ error: 'اكتب معرّف العضو' });
   if (!reason || !String(reason).trim()) return res.status(400).json({ error: 'اكتب سبب التحذير' });
 
   const test = testRedirectUserId();
@@ -87,11 +88,11 @@ router.post('/api/moderation/warn', requireAuth, async (req, res) => {
     res.json({ ok: true, testMode: Boolean(test) });
   } catch (err) {
     console.error('moderation/warn:', err.message);
-    res.status(502).json({ error: 'تعذّر إرسال التحذير (يمكن خصوصياته مقفلة)' });
+    res.status(502).json({ error: 'تعذّر إرسال التحذير — قد تكون رسائله الخاصة مغلقة' });
   }
 });
 
-router.post('/api/moderation/purge', requireAuth, async (req, res) => {
+router.post('/api/moderation/purge', requireAuth, requirePermission('moderation.purge'), async (req, res) => {
   const { channelId, count } = req.body || {};
   if (!channelId) return res.status(400).json({ error: 'اختر قناة' });
   const n = Math.min(Math.max(Number(count) || 0, 1), 500);
@@ -105,7 +106,7 @@ router.post('/api/moderation/purge', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/api/moderation/lock', requireAuth, async (req, res) => {
+router.post('/api/moderation/lock', requireAuth, requirePermission('moderation.lock'), async (req, res) => {
   const { channelId } = req.body || {};
   if (!channelId) return res.status(400).json({ error: 'اختر قناة' });
   try {
@@ -118,7 +119,7 @@ router.post('/api/moderation/lock', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/api/moderation/unlock', requireAuth, async (req, res) => {
+router.post('/api/moderation/unlock', requireAuth, requirePermission('moderation.lock'), async (req, res) => {
   const { channelId } = req.body || {};
   if (!channelId) return res.status(400).json({ error: 'اختر قناة' });
   try {

@@ -1,10 +1,11 @@
 const express = require('express');
+const { requirePermission } = require('../permissions');
 const { requireAuth, requireOwner } = require('../auth');
 const { listActions, clearActions } = require('../audit');
 
 const router = express.Router();
 
-router.get('/api/logs', requireAuth, async (req, res) => {
+router.get('/api/logs', requireAuth, requirePermission('logs.view'), async (req, res) => {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const result = await listActions({ page, pageSize: 50 });
   res.json(result);

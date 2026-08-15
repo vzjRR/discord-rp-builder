@@ -52,15 +52,42 @@ function highlightActiveNav() {
   });
 }
 
+// كل رابط في القائمة الجانبية وما يلزمه من صلاحية — رابط لا يملك صاحب
+// الجلسة صلاحيته يُزال، فلا يرى في المنصة إلا ما يخصّه. الخادم يمنع
+// المسارات نفسها، وهذا تيسير للواجهة لا حماية.
+const NAV_PERMISSIONS = {
+  '/messages': ['messages.dm', 'messages.announce'],
+  '/moderation': [
+    'moderation.kick', 'moderation.ban', 'moderation.timeout',
+    'moderation.warn', 'moderation.purge', 'moderation.lock',
+  ],
+  '/server': ['server.manage'],
+  '/status': ['status.view'],
+  '/templates': ['templates.manage'],
+  '/logs': ['logs.view'],
+};
+
+function applyNavPermissions(admin) {
+  if (admin.isOwner) return;
+  const held = admin.permissions || [];
+  Object.entries(NAV_PERMISSIONS).forEach(([href, needed]) => {
+    if (!needed.some((k) => held.includes(k))) {
+      document.querySelectorAll(`.nav-link[href="${href}"]`).forEach((a) => a.remove());
+    }
+  });
+}
+
 async function loadWhoAmI() {
   const el = document.querySelector('.nav-footer .who');
   if (!el) return;
   try {
     const { admin, testMode } = await api('GET', '/api/me');
-    el.textContent = `مسجّل دخول: ${admin.name}${admin.isOwner ? ' (Owner)' : ''}`;
+    window.currentAdmin = admin;
+    el.textContent = `مسجّل الدخول: ${admin.name}${admin.isOwner ? ' (مالك)' : ''}`;
     if (!admin.isOwner) {
       document.querySelectorAll('a[href="/admins"]').forEach((a) => a.remove());
     }
+    applyNavPermissions(admin);
     if (testMode) {
       const banner = document.createElement('div');
       banner.className = 'msg show err';

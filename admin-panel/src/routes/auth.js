@@ -3,6 +3,7 @@ const auth = require('../auth');
 const { logAction } = require('../audit');
 const { isTestMode } = require('../testMode');
 const { clientIp } = require('../clientIp');
+const permissions = require('../permissions');
 
 const router = express.Router();
 
@@ -32,8 +33,12 @@ router.post('/api/logout', async (req, res) => {
 });
 
 router.get('/api/me', (req, res) => {
-  if (!req.admin) return res.status(401).json({ error: 'غير مسجل دخول' });
-  res.json({ admin: req.admin, testMode: isTestMode() });
+  if (!req.admin) return res.status(401).json({ error: 'لم تسجّل الدخول' });
+  // نرسل الصلاحيات الفعلية (لا المخزّنة) كي تعرف الواجهة ما تعرضه
+  res.json({
+    admin: { ...req.admin, permissions: permissions.effective(req.admin) },
+    testMode: isTestMode(),
+  });
 });
 
 const PIN_RE = /^[0-9]{4,32}$/;
@@ -41,7 +46,7 @@ const PIN_RE = /^[0-9]{4,32}$/;
 router.put('/api/me/pin', auth.requireAuth, async (req, res) => {
   const { currentPin, newPin } = req.body || {};
   if (!PIN_RE.test(newPin || '')) {
-    return res.status(400).json({ error: 'الرقم السري الجديد لازم يكون أرقام فقط، من ٤ إلى ٣٢ رقم' });
+    return res.status(400).json({ error: 'الرقم السري الجديد أرقام فقط، من ٤ إلى ٣٢ رقمًا' });
   }
   // جلسة الاسترجاع وحدها تُعفى من الرقم الحالي: صاحبها لا يعرفه أصلًا،
   // وقد أثبت هويته برمز وصله في الخاص، والجلسة محجوزة لهذه الخطوة وحدها.

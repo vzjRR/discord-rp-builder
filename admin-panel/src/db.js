@@ -79,6 +79,12 @@ function migrate() {
     db.exec('ALTER TABLE admins ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0');
   }
 
+  // صلاحيات الحساب — JSON. NULL تعني حسابًا أُنشئ قبل الميزة، ويُعامل
+  // على أنه كامل الصلاحيات (شرحه في src/permissions.js).
+  if (!adminCols.includes('permissions')) {
+    db.exec('ALTER TABLE admins ADD COLUMN permissions TEXT');
+  }
+
   // جلسة نشأت عن استرجاع رقم سري منسي: صاحبها لا يعرف رقمه الحالي، فيُسمح
   // لها وحدها بوضع رقم جديد دون طلب القديم — ولا تفعل شيئًا سوى ذلك.
   const sessionCols = db.prepare('PRAGMA table_info(sessions)').all().map((c) => c.name);

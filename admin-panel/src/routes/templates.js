@@ -9,6 +9,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { requirePermission } = require('../permissions');
 const { requireAuth } = require('../auth');
 const { logAction } = require('../audit');
 
@@ -43,7 +44,7 @@ router.get('/api/templates', requireAuth, (req, res) => {
   });
 });
 
-router.put('/api/templates', requireAuth, async (req, res) => {
+router.put('/api/templates', requireAuth, requirePermission('templates.manage'), async (req, res) => {
   const { contentTemplate, dmMessage } = req.body || {};
   if (!contentTemplate || !String(contentTemplate).trim()) {
     return res.status(400).json({ error: 'نص رسالة الترحيب فاضي' });
@@ -59,7 +60,7 @@ router.put('/api/templates', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/api/templates/reset', requireAuth, async (req, res) => {
+router.post('/api/templates/reset', requireAuth, requirePermission('templates.manage'), async (req, res) => {
   try {
     fs.unlinkSync(OVERRIDE_PATH);
   } catch {

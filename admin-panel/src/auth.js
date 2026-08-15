@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { db } = require('./db');
+const permissions = require('./permissions');
 
 const SESSION_COOKIE = 'enclave_admin_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوم
@@ -117,7 +118,7 @@ async function applyOwnerPinReset() {
 // ── تسجيل الدخول ─────────────────────────────────────────────────
 async function login(pin, ip) {
   if (isRateLimited(ip)) {
-    return { ok: false, error: 'محاولات كثيرة، حاول بعد شوي' };
+    return { ok: false, error: 'محاولات كثيرة، أعد المحاولة بعد قليل' };
   }
   recordAttempt(ip);
 
@@ -157,7 +158,8 @@ async function resolveSession(token) {
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT s.expires_at, s.via_recovery, a.id, a.name, a.is_owner, a.must_change_pin, a.discord_user_id
+      `SELECT s.expires_at, s.via_recovery, a.id, a.name, a.is_owner, a.must_change_pin,
+              a.discord_user_id, a.permissions
          FROM sessions s JOIN admins a ON a.id = s.admin_id
         WHERE s.token_hash = ?`
     )
@@ -174,6 +176,7 @@ async function resolveSession(token) {
     mustChangePin: Boolean(row.must_change_pin),
     discordUserId: row.discord_user_id || null,
     viaRecovery: Boolean(row.via_recovery),
+    permissions: permissions.parse(row.permissions),
   };
 }
 
@@ -200,7 +203,7 @@ async function changePin(adminId, currentPin, newPin, { skipCurrentPin = false }
 
 function requireAuth(req, res, next) {
   if (!req.admin) {
-    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'غير مسجل دخول' });
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'لم تسجّل الدخول' });
     return res.redirect('/login');
   }
   next();
@@ -208,7 +211,7 @@ function requireAuth(req, res, next) {
 
 function requireOwner(req, res, next) {
   if (!req.admin?.isOwner) {
-    if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'صلاحية Owner فقط' });
+    if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'هذا الإجراء للمالك وحده' });
     return res.redirect('/');
   }
   next();

@@ -16,8 +16,9 @@
     <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
-    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
     <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
     <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
@@ -28,12 +29,12 @@
   </nav>
   <main class="main">
     <h1>إدارة الحسابات</h1>
-    <p class="subtitle">هذي الصفحة تظهر لحساب الـ Owner فقط — إنشاء وحذف حسابات دخول للمنصة</p>
+    <p class="subtitle">هذه الصفحة للمالك وحده — إنشاء حسابات الدخول إلى المنصة وحذفها</p>
 
     <div class="card" id="requestsCard" style="display:none">
       <h2>طلبات دخول معلّقة</h2>
       <table>
-        <thead><tr><th>ID العضو</th><th>ملاحظة</th><th>الوقت</th><th></th></tr></thead>
+        <thead><tr><th>معرّف العضو</th><th>ملاحظة</th><th>الوقت</th><th></th></tr></thead>
         <tbody id="requestsBody"></tbody>
       </table>
     </div>
@@ -66,11 +67,11 @@
 
     <div class="card">
       <h2>رسالة الترحيب بالمنصة</h2>
-      <p class="subtitle">هذي الرسالة تروح تلقائيًا بالخاص لأي عضو تسوّي له حساب. تقدر تعدّلها براحتك — استخدم {name} و{pin} و{platformUrl} وبتتعوّض تلقائيًا.</p>
+      <p class="subtitle">تُرسل هذه الرسالة تلقائيًا في الخاص إلى كل عضو تنشئ له حسابًا. عدّلها كما تشاء — واستعمل {name} و{pin} و{platformUrl} فتُستبدل تلقائيًا.</p>
       <textarea id="onboardingMsg" rows="10" style="font-family:inherit"></textarea>
       <div style="display:flex;gap:10px;margin-top:12px">
         <button class="btn small" id="saveOnboarding">حفظ</button>
-        <button class="btn small ghost" id="resetOnboarding">رجوع للافتراضي</button>
+        <button class="btn small ghost" id="resetOnboarding">إعادة النص الافتراضي</button>
       </div>
       <div class="msg" id="onboardingMsgStatus"></div>
     </div>
@@ -80,22 +81,35 @@
       <label>اختر العضو من ديسكورد</label>
       <div id="newMemberPicker"></div>
 
-      <label>الاسم اللي يظهر بالمنصة</label>
-      <input type="text" id="newName" placeholder="يتعبّى تلقائيًا لما تختار عضو">
+      <label>الاسم الذي يظهر في المنصة</label>
+      <input type="text" id="newName" placeholder="يُملأ تلقائيًا عند اختيار عضو">
 
-      <label>الرقم السري (أرقام فقط، ٤ إلى ٣٢ رقم)</label>
+      <label>الرقم السري (أرقام فقط، من ٤ إلى ٣٢ رقمًا)</label>
       <div class="row">
         <input type="text" inputmode="numeric" id="newPin" placeholder="مثال: 482913">
         <button type="button" class="btn small ghost" id="genPin" style="flex:0 0 auto">🎲 توليد</button>
       </div>
 
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
-        <input type="checkbox" id="newIsOwner" style="width:auto"> صلاحية Owner (يقدر يدير الحسابات كمان)
+        <input type="checkbox" id="newIsمالك" style="width:auto"> صلاحية مالك (يدير حسابات المنصة أيضًا)
       </label>
 
+      <div id="newPermsWrap">
+        <label style="margin-top:16px">ما الذي يستطيع هذا الحساب فعله؟</label>
+        <p class="subtitle" style="margin:0 0 10px">
+          اختر ما تريد منحه إياه. ما لا تختاره يبقى محجوبًا عنه، ولا تظهر له
+          صفحته في المنصة أصلًا.
+        </p>
+        <div id="newPerms" class="perm-grid"></div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button type="button" class="btn small ghost" id="permsAll">تحديد الكل</button>
+          <button type="button" class="btn small ghost" id="permsNone">إلغاء الكل</button>
+        </div>
+      </div>
+
       <p class="subtitle" style="margin-top:10px">
-        لو اخترت عضو من ديسكورد، بترسل له المنصة تلقائيًا رسالة خاصة فيها رابط الدخول
-        ورقمه السري وتحذير إنه ممنوع يشاركه — لأنه يعطي تحكم شبه كامل بالسيرفر.
+        إن اخترت عضوًا من ديسكورد، أرسلت إليه المنصة تلقائيًا رسالة خاصة فيها رابط
+        الدخول ورقمه السري وتنبيهًا بمنع مشاركته — فهو يمنح تحكّمًا شبه كامل بالسيرفر.
       </p>
 
       <button class="btn" id="createBtn">إنشاء</button>
@@ -105,8 +119,8 @@
     <div class="card">
       <h2>الحسابات الحالية</h2>
       <table>
-        <thead><tr><th>الاسم</th><th>الصلاحية</th><th>آخر دخول</th><th></th></tr></thead>
-        <tbody id="adminsBody"><tr><td colspan="4" class="subtitle">جارِ التحميل…</td></tr></tbody>
+        <thead><tr><th>الاسم</th><th>النوع</th><th>الصلاحيات</th><th>آخر دخول</th><th></th></tr></thead>
+        <tbody id="adminsBody"><tr><td colspan="5" class="subtitle">جارٍ التحميل…</td></tr></tbody>
       </table>
     </div>
 
@@ -124,7 +138,7 @@
   const newMemberPicker = createMemberPicker({
     mount: document.getElementById('newMemberPicker'),
     mode: 'members',
-    placeholder: 'اكتب اسم العضو أو يوزرنيمه...',
+    placeholder: 'اكتب اسم العضو أو معرّفه…',
     onSelect: (m) => {
       if (!document.getElementById('newName').value.trim()) {
         document.getElementById('newName').value = m.label.replace(/\s*\(@.*\)$/, '');
@@ -145,7 +159,7 @@
           <td>${escapeHtml(r.note || '—')}</td>
           <td class="subtitle">${new Date(r.createdAt).toLocaleString('ar-SA')}</td>
           <td style="display:flex;gap:8px">
-            <button class="btn small" data-use="${r.discordUserId}">سوّي له حساب</button>
+            <button class="btn small" data-use="${r.discordUserId}">أنشئ له حسابًا</button>
             <button class="btn small ghost" data-reject="${r.id}">رفض</button>
           </td>
         </tr>`).join('');
@@ -159,7 +173,7 @@
       });
       document.querySelectorAll('[data-reject]').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          if (!confirm('متأكد تبي ترفض هذا الطلب؟')) return;
+          if (!confirm('أتريد رفض هذا الطلب؟')) return;
           btn.disabled = true;
           try {
             await api('POST', `/api/access-requests/${btn.dataset.reject}/reject`);
@@ -255,12 +269,12 @@
   });
 
   document.getElementById('resetOnboarding').addEventListener('click', async () => {
-    if (!confirm('ترجع رسالة الترحيب للنص الافتراضي؟')) return;
+    if (!confirm('أتريد إعادة رسالة الترحيب إلى النص الافتراضي؟')) return;
     const statusEl = document.getElementById('onboardingMsgStatus');
     try {
       await api('POST', '/api/admins/onboarding-message/reset');
       await loadOnboardingMessage();
-      showMsg(statusEl, 'تم الرجوع للافتراضي.', true);
+      showMsg(statusEl, 'تم الإعادة النص الافتراضي.', true);
     } catch (err) {
       showMsg(statusEl, err.message, false);
     }
@@ -273,21 +287,113 @@
     document.getElementById('newPin').value = pin;
   });
 
+  // ── الصلاحيات ─────────────────────────────────────────────────
+  // قائمة الصلاحيات ونصوصها تأتي من الخادم، فلا يتفرّق التعريف بين طرفين.
+  let PERMS = {};
+
+  function permCheckboxes(container, checked) {
+    container.innerHTML = Object.entries(PERMS).map(([key, label]) => `
+      <label class="perm-item">
+        <input type="checkbox" value="${escapeHtml(key)}"${checked.includes(key) ? ' checked' : ''}>
+        <span>${escapeHtml(label)}</span>
+      </label>`).join('');
+  }
+
+  function readPerms(container) {
+    return [...container.querySelectorAll('input[type=checkbox]')].filter((c) => c.checked).map((c) => c.value);
+  }
+
+  const newPerms = document.getElementById('newPerms');
+  document.getElementById('permsAll').addEventListener('click', () =>
+    newPerms.querySelectorAll('input').forEach((c) => { c.checked = true; }));
+  document.getElementById('permsNone').addEventListener('click', () =>
+    newPerms.querySelectorAll('input').forEach((c) => { c.checked = false; }));
+
+  // حساب المالك يملك كل شيء بطبيعته، فاختيار الصلاحيات له بلا معنى
+  document.getElementById('newIsمالك').addEventListener('change', (e) => {
+    document.getElementById('newPermsWrap').style.display = e.target.checked ? 'none' : 'block';
+  });
+
   async function loadAdmins() {
     const body = document.getElementById('adminsBody');
     try {
-      const { admins } = await api('GET', '/api/admins');
-      body.innerHTML = admins.map((a) => `
+      const { admins, available } = await api('GET', '/api/admins');
+      if (available && !Object.keys(PERMS).length) {
+        PERMS = available;
+        permCheckboxes(newPerms, ['logs.view', 'status.view']);
+      }
+
+      body.innerHTML = admins.map((a) => {
+        const summary = a.isمالك
+          ? 'كل الصلاحيات'
+          : !a.permissionsExplicit
+            ? 'كل الصلاحيات (حساب سابق للميزة)'
+            : a.permissions.length
+              ? `${a.permissions.length} من ${Object.keys(PERMS).length}`
+              : 'بلا صلاحيات';
+        return `
         <tr>
           <td>${escapeHtml(a.name)}</td>
-          <td>${a.isOwner ? '<span class="badge">Owner</span>' : 'أدمن'}</td>
-          <td class="subtitle">${a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString('ar-SA') : 'ما دخل بعد'}</td>
-          <td><button class="btn small danger" data-id="${a.id}" data-name="${escapeHtml(a.name)}">حذف</button></td>
-        </tr>`).join('');
+          <td>${a.isمالك ? '<span class="badge">مالك</span>' : 'مسؤول'}</td>
+          <td class="subtitle">${escapeHtml(summary)}</td>
+          <td class="subtitle">${a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString('ar-SA') : 'لم يدخل بعد'}</td>
+          <td style="display:flex;gap:8px">
+            ${a.isمالك ? '' : `<button class="btn small ghost" data-perms="${a.id}">الصلاحيات</button>`}
+            <button class="btn small danger" data-id="${a.id}" data-name="${escapeHtml(a.name)}">حذف</button>
+          </td>
+        </tr>
+        ${a.isمالك ? '' : `
+        <tr id="permRow-${a.id}" style="display:none">
+          <td colspan="5">
+            <div class="perm-grid" id="permBox-${a.id}"></div>
+            <div style="display:flex;gap:10px;margin-top:12px">
+              <button class="btn small" data-save-perms="${a.id}">حفظ الصلاحيات</button>
+              <button class="btn small ghost" data-cancel-perms="${a.id}">إلغاء</button>
+            </div>
+            <div class="msg" id="permMsg-${a.id}"></div>
+          </td>
+        </tr>`}`;
+      }).join('');
+
+      body.querySelectorAll('[data-perms]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.perms;
+          const row = document.getElementById(`permRow-${id}`);
+          const open = row.style.display !== 'none';
+          if (open) { row.style.display = 'none'; return; }
+          const admin = admins.find((a) => String(a.id) === id);
+          permCheckboxes(document.getElementById(`permBox-${id}`), admin.permissions);
+          row.style.display = 'table-row';
+        });
+      });
+
+      body.querySelectorAll('[data-cancel-perms]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.getElementById(`permRow-${btn.dataset.cancelPerms}`).style.display = 'none';
+        });
+      });
+
+      body.querySelectorAll('[data-save-perms]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.savePerms;
+          const msgEl = document.getElementById(`permMsg-${id}`);
+          btn.disabled = true;
+          try {
+            const picked = readPerms(document.getElementById(`permBox-${id}`));
+            await api('PUT', `/api/admins/${id}/permissions`, { permissions: picked });
+            showMsg(msgEl, 'حُفظت الصلاحيات.', true);
+            setTimeout(loadAdmins, 700);
+          } catch (err) {
+            showMsg(msgEl, err.message, false);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
 
       body.querySelectorAll('[data-id]').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          if (!confirm(`متأكد تبي تحذف حساب "${btn.dataset.name}"؟`)) return;
+          if (!confirm(`أتريد حذف حساب "${btn.dataset.name}"؟`)) return;
           btn.disabled = true;
           try {
             await api('DELETE', `/api/admins/${btn.dataset.id}`);
@@ -299,14 +405,14 @@
         });
       });
     } catch (err) {
-      body.innerHTML = `<tr><td colspan="4" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
   document.getElementById('createBtn').addEventListener('click', async () => {
     const name = document.getElementById('newName').value.trim();
     const pin = document.getElementById('newPin').value.trim();
-    const isOwner = document.getElementById('newIsOwner').checked;
+    const isمالك = document.getElementById('newIsمالك').checked;
     const discordUserId = newMemberPicker.getId();
     const msgEl = document.getElementById('createMsg');
     const btn = document.getElementById('createBtn');
@@ -315,14 +421,17 @@
 
     btn.disabled = true;
     try {
-      const data = await api('POST', '/api/admins', { name, pin, isOwner, discordUserId });
-      let text = `تم إنشاء حساب "${name}".`;
-      if (discordUserId) text += data.dmSent ? ' وأُرسلت له رسالة تعريف بالمنصة.' : ` لكن ${data.dmError}`;
-      else text += ' ما اخترت عضو من ديسكورد، فسلّمه رقمه السري بنفسك بأمان.';
+      const permissions = isمالك ? [] : readPerms(newPerms);
+      const data = await api('POST', '/api/admins', { name, pin, isمالك, discordUserId, permissions });
+      let text = `أُنشئ حساب "${name}".`;
+      if (discordUserId) text += data.dmSent ? ' وأُرسلت إليه رسالة التعريف بالمنصة وصلاحياته.' : ` غير أنه ${data.dmError}`;
+      else text += ' لم تختر عضوًا من ديسكورد، فسلّمه رقمه السري بنفسك بأمان.';
       showMsg(msgEl, text, true);
       document.getElementById('newName').value = '';
       document.getElementById('newPin').value = '';
-      document.getElementById('newIsOwner').checked = false;
+      document.getElementById('newIsمالك').checked = false;
+      document.getElementById('newPermsWrap').style.display = 'block';
+      permCheckboxes(newPerms, ['logs.view', 'status.view']);
       newMemberPicker.clear();
       loadAdmins();
     } catch (err) {

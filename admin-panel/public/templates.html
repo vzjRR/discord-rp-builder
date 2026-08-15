@@ -16,8 +16,9 @@
     <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
     <a class="nav-link" href="/">الرئيسية</a>
     <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
-    <a class="nav-link" href="/moderation">Moderation</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
     <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
     <a class="nav-link" href="/templates">الرسائل الثابتة</a>
     <a class="nav-link" href="/logs">سجل النشاط</a>
     <a class="nav-link" href="/admins">إدارة الحسابات</a>
@@ -28,13 +29,13 @@
   </nav>
   <main class="main">
     <h1>الرسائل الثابتة</h1>
-    <p class="subtitle">تعديل نصوص الترحيب اللي ترسل تلقائيًا لكل عضو جديد</p>
+    <p class="subtitle">تعديل نصوص الترحيب التي تُرسل تلقائيًا إلى كل عضو جديد</p>
 
     <div class="card">
       <h2>المتغيرات المتاحة</h2>
       <p class="subtitle" style="line-height:2">
         <code>{member}</code> منشن العضو · <code>{memberTag}</code> يوزرنيمه · <code>{displayName}</code> اسمه المعروض ·
-        <code>{memberCount}</code> ترتيبه · <code>{serverName}</code> اسم السيرفر · <code>{inviter}</code> مين دعاه ·
+        <code>{memberCount}</code> ترتيبه · <code>{serverName}</code> اسم السيرفر · <code>{inviter}</code> من دعاه ·
         <code>{rulesChannel}</code>/<code>{rulesChannelUrl}</code> · <code>{welcomeChannel}</code>/<code>{welcomeChannelUrl}</code> ·
         <code>{ticketChannel}</code>/<code>{ticketChannelUrl}</code>
         <br>استخدم صيغة <code>...Url</code> بالرسائل الخاصة، ومنشن <code>{...Channel}</code> العادي بالرسائل داخل السيرفر.
@@ -52,7 +53,7 @@
     </div>
 
     <button class="btn" id="saveBtn">حفظ التعديلات</button>
-    <button class="btn ghost" id="resetBtn">رجوع للافتراضي</button>
+    <button class="btn ghost" id="resetBtn">إعادة النص الافتراضي</button>
     <div class="msg" id="msg"></div>
 
     <div class="footer-credit">تم التطوير عن طريق <b>vzjRR</b></div>
