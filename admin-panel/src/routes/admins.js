@@ -115,7 +115,11 @@ router.post('/api/admins', guard, async (req, res) => {
   if (discordUserId) {
     const test = testRedirectUserId();
     const target = test || discordUserId;
-    const platformUrl = `${req.protocol}://${req.get('host')}`;
+    // لما الدومين الخاص يمر عبر Cloudflare مع إعادة كتابة الـ Host، الطلب
+    // يوصلنا باسم دومين Railway الخام — فلو بنينا الرابط من الطلب بيوصل
+    // للأدمن الجديد رابط Railway بدل الدومين الرسمي. PUBLIC_BASE_URL هو
+    // المصدر الموثوق للرابط اللي يُنشر، ونرجع للطلب لو مو مضبوط.
+    const platformUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
     const messageTemplate = readOnboardingOverride() ?? DEFAULT_ONBOARDING_MESSAGE;
     try {
       await discord.sendDM(target, fillTemplate(messageTemplate, { name: name.trim(), pin, platformUrl }));
