@@ -28,7 +28,17 @@
   </nav>
   <main class="main">
     <h1>سجل النشاط</h1>
-    <p class="subtitle">كل الأعمال اللي صارت من المنصة — مين سواها وامتى</p>
+    <p class="subtitle">جميع الإجراءات التي تمت من المنصة — من نفّذها ومتى</p>
+
+    <div class="card" id="clearCard" style="display:none">
+      <h2>مسح السجل</h2>
+      <p class="subtitle">
+        متاح للمالك وحده. سيُحذف السجل بالكامل نهائيًا دون إمكانية استرجاعه،
+        وستُسجَّل عملية المسح نفسها كأول قيد في السجل الجديد.
+      </p>
+      <button class="btn small danger" id="clearLogs">مسح السجل بالكامل</button>
+      <div class="msg" id="clearMsg"></div>
+    </div>
 
     <div class="card">
       <table>
@@ -56,22 +66,51 @@
     'moderation.timeout': 'تايم أوت', 'moderation.warn': 'تحذير',
     'moderation.purge': 'حذف رسائل', 'moderation.lock': 'قفل قناة', 'moderation.unlock': 'فتح قناة',
     'admin.create': 'إنشاء حساب', 'admin.revoke': 'حذف حساب', 'admin.onboard_dm': 'رسالة تعريف',
+    'admin.revoke_dm': 'إشعار سحب صلاحية', 'admin.change_pin': 'تغيير رقم سري',
     'server.channel_create': 'إنشاء قناة', 'server.channel_update': 'تعديل قناة', 'server.channel_delete': 'حذف قناة',
-    'server.role_create': 'إنشاء رول', 'server.role_update': 'تعديل رول', 'server.role_delete': 'حذف رول',
-    'templates.update': 'تعديل رسالة ثابتة',
+    'server.role_create': 'إنشاء رتبة', 'server.role_update': 'تعديل رتبة', 'server.role_delete': 'حذف رتبة',
+    'templates.update': 'تعديل رسالة ثابتة', 'template.update': 'تعديل رسالة ثابتة',
+    'onboarding_message.update': 'تعديل رسالة التعريف',
+    'access_request.reject': 'رفض طلب دخول', 'preview.send': 'إرسال معاينة الرسائل',
+    'logs.clear': 'مسح السجل',
   };
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // بطاقة المسح للمالك وحده — الخادم يمنعها أيضًا، وهذا إخفاء للواجهة فقط
+  (async () => {
+    try {
+      const { admin } = await api('GET', '/api/me');
+      if (admin.isOwner) document.getElementById('clearCard').style.display = 'block';
+    } catch { /* تجاهل */ }
+  })();
+
+  document.getElementById('clearLogs').addEventListener('click', async () => {
+    if (!confirm('سيُمسح سجل النشاط بالكامل نهائيًا. هل أنت متأكد؟')) return;
+    const btn = document.getElementById('clearLogs');
+    const msgEl = document.getElementById('clearMsg');
+    btn.disabled = true;
+    try {
+      const data = await api('DELETE', '/api/logs');
+      showMsg(msgEl, `تم مسح ${data.removed} سجلًا.`, true);
+      page = 1;
+      loadLogs();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   async function loadLogs() {
     const body = document.getElementById('logsBody');
-    body.innerHTML = '<tr><td colspan="4" class="subtitle">جارِ التحميل…</td></tr>';
+    body.innerHTML = '<tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr>';
     try {
       const data = await api('GET', `/api/logs?page=${page}`);
       if (!data.rows.length) {
-        body.innerHTML = '<tr><td colspan="4" class="subtitle">ما فيه أي نشاط بعد</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" class="subtitle">لا يوجد أي نشاط بعد</td></tr>';
       } else {
         body.innerHTML = data.rows.map((r) => `
           <tr>

@@ -128,6 +128,7 @@ app.use(require('./src/routes/admins'));
 app.use(require('./src/routes/server'));
 app.use(require('./src/routes/templates'));
 app.use(require('./src/routes/access'));
+app.use(require('./src/routes/preview'));
 
 // ── صفحات الواجهة (كل وحدة محمية بحسب الحاجة) ────────────────────
 const page = (name) => path.join(__dirname, 'public', name);
