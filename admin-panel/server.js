@@ -36,7 +36,14 @@ app.use(cookieParser(process.env.SESSION_SECRET));
 // افتراضيًا مطفّي: لو انقلب شي بإعداد Cloudflare والخيار مفعّل، بتنقفل
 // المنصة عن الجميع — ففعّله بعد ما تتأكد إن الدومين شغّال عبر Cloudflare.
 // نرد 404 فاضية بدون أي تفاصيل — ما نأكد ولا ننفي وجود شي على هذا العنوان.
-if (process.env.REQUIRE_CLOUDFLARE === 'true') {
+// نقبل true/1/yes/on بأي حالة أحرف ومع مسافات زايدة — لأن مقارنة نصية
+// صارمة تعني إن خطأ إملائي بسيط بلوحة Railway يعطّل حماية بصمت وإنت
+// فاكرها شغّالة، وهذا أسوأ من قبول عدة صيغ.
+const REQUIRE_CF = ['true', '1', 'yes', 'on'].includes(
+  String(process.env.REQUIRE_CLOUDFLARE || '').trim().toLowerCase()
+);
+
+if (REQUIRE_CF) {
   if (!process.env.CLOUDFLARE_SECRET) {
     console.error(
       '❌ REQUIRE_CLOUDFLARE=true بدون CLOUDFLARE_SECRET — كذا بترفض كل الطلبات ' +
@@ -169,6 +176,13 @@ const PORT = process.env.PORT || 3000;
     if (process.env.TEST_MODE_REDIRECT_USER_ID) {
       console.log(`🧪 وضع التجربة شغّال — كل الرسائل بتروح لعضو ID=${process.env.TEST_MODE_REDIRECT_USER_ID}`);
     }
+    // نطبع حالة الإعدادات الحسّاسة عند الإقلاع — بدونها ما تعرف إن متغيّر
+    // ما انضبط إلا لما تكتشف إن الحماية مو شغّالة أصلًا.
+    console.log(
+      `🔒 قفل المصدر: ${REQUIRE_CF ? 'مفعّل' : 'مطفّي'} | ` +
+        `سر Cloudflare: ${process.env.CLOUDFLARE_SECRET ? 'مضبوط' : 'غير مضبوط'} | ` +
+        `الرابط العام: ${process.env.PUBLIC_BASE_URL || '(من الطلب)'}`
+    );
   });
 })().catch((err) => {
   console.error('❌ فشل تشغيل السيرفر:', err);
