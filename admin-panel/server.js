@@ -12,6 +12,7 @@ const cookieParser = require('cookie-parser');
 
 const { migrate } = require('./src/db');
 const auth = require('./src/auth');
+const { isFromCloudflare } = require('./src/clientIp');
 
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'GUILD_ID', 'SESSION_SECRET'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
@@ -26,6 +27,28 @@ app.set('trust proxy', 1); // خلف بروكسي Railway — عشان req.ip و
 
 app.use(express.json({ limit: '256kb' }));
 app.use(cookieParser(process.env.SESSION_SECRET));
+
+// المنصة تُنشر خلف Cloudflare على الدومين الرسمي، لكن رابط الاستضافة الخام
+// يظل يشتغل لو اكتشفه أحد — وهذا يكشف مكان الاستضافة ويلتف حول أي حماية
+// نضيفها على مستوى Cloudflare. لما REQUIRE_CLOUDFLARE=true نرفض أي طلب ما
+// جا عبر Cloudflare (يُتحقق منه بالسر المشترك — شوف src/clientIp.js).
+//
+// افتراضيًا مطفّي: لو انقلب شي بإعداد Cloudflare والخيار مفعّل، بتنقفل
+// المنصة عن الجميع — ففعّله بعد ما تتأكد إن الدومين شغّال عبر Cloudflare.
+// نرد 404 فاضية بدون أي تفاصيل — ما نأكد ولا ننفي وجود شي على هذا العنوان.
+if (process.env.REQUIRE_CLOUDFLARE === 'true') {
+  if (!process.env.CLOUDFLARE_SECRET) {
+    console.error(
+      '❌ REQUIRE_CLOUDFLARE=true بدون CLOUDFLARE_SECRET — كذا بترفض كل الطلبات ' +
+        'وتنقفل المنصة عن الجميع. اضبط CLOUDFLARE_SECRET أو عطّل REQUIRE_CLOUDFLARE.'
+    );
+    process.exit(1);
+  }
+  app.use((req, res, next) => {
+    if (isFromCloudflare(req)) return next();
+    res.status(404).type('text/plain').send('Not Found');
+  });
+}
 
 // أمان أساسي على الهيدرز — بدون مكتبة خارجية إضافية
 app.use((req, res, next) => {
