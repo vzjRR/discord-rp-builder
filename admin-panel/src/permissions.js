@@ -50,10 +50,16 @@ function parse(stored) {
 /**
  * صلاحيات فعلية لحساب: المالك كل شيء، والحساب القديم كل شيء، وغيرهما
  * ما خُزِّن له صراحة.
+ *
+ * ولا شيء إطلاقًا لمن لا جلسة له. هذا الشرط أول ما يُفحص عمدًا: بدونه
+ * كان الغياب (null/undefined) يمرّ على شرط "الحساب القديم" فيُمنح كل
+ * الصلاحيات. لا يُستغَلّ اليوم لأن requireAuth يسبق كل حارس صلاحية، لكن
+ * مسارًا واحدًا يُكتب غدًا بلا requireAuth كان سيفتح المنصة للعالم.
  */
 function effective(admin) {
-  if (admin?.isOwner) return [...KEYS];
-  if (admin?.permissions === null || admin?.permissions === undefined) return [...KEYS];
+  if (!admin || typeof admin !== 'object' || admin.id === undefined) return [];
+  if (admin.isOwner) return [...KEYS];
+  if (admin.permissions === null || admin.permissions === undefined) return [...KEYS];
   return admin.permissions;
 }
 

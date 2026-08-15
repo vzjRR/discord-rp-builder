@@ -4,7 +4,7 @@ const { requireAuth } = require('../auth');
 const { requirePermission } = require('../permissions');
 const { logAction } = require('../audit');
 const { testRedirectUserId } = require('../testMode');
-const { upload, toDiscordFiles } = require('../uploads');
+const { upload, toDiscordFiles, limitRequestSize } = require('../uploads');
 
 const router = express.Router();
 
@@ -31,6 +31,7 @@ router.post(
   '/api/messages/dm',
   requireAuth,
   requirePermission('messages.dm'),
+  limitRequestSize,
   upload.array('files', 10),
   async (req, res) => {
   const { mode, roleId, userId, content } = req.body || {};
@@ -80,6 +81,7 @@ router.post(
   '/api/messages/announce',
   requireAuth,
   requirePermission('messages.announce'),
+  limitRequestSize,
   upload.array('files', 10),
   async (req, res) => {
   const { channelId, content } = req.body || {};

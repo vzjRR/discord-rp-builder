@@ -84,14 +84,14 @@
       <label>الاسم الذي يظهر في المنصة</label>
       <input type="text" id="newName" placeholder="يُملأ تلقائيًا عند اختيار عضو">
 
-      <label>الرقم السري (أرقام فقط، من ٤ إلى ٣٢ رقمًا)</label>
+      <label>الرقم السري (أرقام فقط، من ٦ إلى ٣٢ رقمًا)</label>
       <div class="row">
         <input type="text" inputmode="numeric" id="newPin" placeholder="مثال: 482913">
         <button type="button" class="btn small ghost" id="genPin" style="flex:0 0 auto">🎲 توليد</button>
       </div>
 
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
-        <input type="checkbox" id="newIsمالك" style="width:auto"> صلاحية مالك (يدير حسابات المنصة أيضًا)
+        <input type="checkbox" id="newIsOwner" style="width:auto"> صلاحية مالك (يدير حسابات المنصة أيضًا)
       </label>
 
       <div id="newPermsWrap">
@@ -310,7 +310,7 @@
     newPerms.querySelectorAll('input').forEach((c) => { c.checked = false; }));
 
   // حساب المالك يملك كل شيء بطبيعته، فاختيار الصلاحيات له بلا معنى
-  document.getElementById('newIsمالك').addEventListener('change', (e) => {
+  document.getElementById('newIsOwner').addEventListener('change', (e) => {
     document.getElementById('newPermsWrap').style.display = e.target.checked ? 'none' : 'block';
   });
 
@@ -324,7 +324,7 @@
       }
 
       body.innerHTML = admins.map((a) => {
-        const summary = a.isمالك
+        const summary = a.isOwner
           ? 'كل الصلاحيات'
           : !a.permissionsExplicit
             ? 'كل الصلاحيات (حساب سابق للميزة)'
@@ -334,15 +334,15 @@
         return `
         <tr>
           <td>${escapeHtml(a.name)}</td>
-          <td>${a.isمالك ? '<span class="badge">مالك</span>' : 'مسؤول'}</td>
+          <td>${a.isOwner ? '<span class="badge">مالك</span>' : 'مسؤول'}</td>
           <td class="subtitle">${escapeHtml(summary)}</td>
           <td class="subtitle">${a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString('ar-SA') : 'لم يدخل بعد'}</td>
           <td style="display:flex;gap:8px">
-            ${a.isمالك ? '' : `<button class="btn small ghost" data-perms="${a.id}">الصلاحيات</button>`}
+            ${a.isOwner ? '' : `<button class="btn small ghost" data-perms="${a.id}">الصلاحيات</button>`}
             <button class="btn small danger" data-id="${a.id}" data-name="${escapeHtml(a.name)}">حذف</button>
           </td>
         </tr>
-        ${a.isمالك ? '' : `
+        ${a.isOwner ? '' : `
         <tr id="permRow-${a.id}" style="display:none">
           <td colspan="5">
             <div class="perm-grid" id="permBox-${a.id}"></div>
@@ -412,7 +412,7 @@
   document.getElementById('createBtn').addEventListener('click', async () => {
     const name = document.getElementById('newName').value.trim();
     const pin = document.getElementById('newPin').value.trim();
-    const isمالك = document.getElementById('newIsمالك').checked;
+    const isOwner = document.getElementById('newIsOwner').checked;
     const discordUserId = newMemberPicker.getId();
     const msgEl = document.getElementById('createMsg');
     const btn = document.getElementById('createBtn');
@@ -421,15 +421,15 @@
 
     btn.disabled = true;
     try {
-      const permissions = isمالك ? [] : readPerms(newPerms);
-      const data = await api('POST', '/api/admins', { name, pin, isمالك, discordUserId, permissions });
+      const permissions = isOwner ? [] : readPerms(newPerms);
+      const data = await api('POST', '/api/admins', { name, pin, isOwner, discordUserId, permissions });
       let text = `أُنشئ حساب "${name}".`;
       if (discordUserId) text += data.dmSent ? ' وأُرسلت إليه رسالة التعريف بالمنصة وصلاحياته.' : ` غير أنه ${data.dmError}`;
       else text += ' لم تختر عضوًا من ديسكورد، فسلّمه رقمه السري بنفسك بأمان.';
       showMsg(msgEl, text, true);
       document.getElementById('newName').value = '';
       document.getElementById('newPin').value = '';
-      document.getElementById('newIsمالك').checked = false;
+      document.getElementById('newIsOwner').checked = false;
       document.getElementById('newPermsWrap').style.display = 'block';
       permCheckboxes(newPerms, ['logs.view', 'status.view']);
       newMemberPicker.clear();

@@ -79,6 +79,12 @@ function migrate() {
     db.exec('ALTER TABLE admins ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0');
   }
 
+  // عدّاد تخمينات رمز الاسترجاع — للقواعد المُنشأة قبل إضافته
+  const resetCols = db.prepare('PRAGMA table_info(pin_resets)').all().map((c) => c.name);
+  if (!resetCols.includes('attempts')) {
+    db.exec('ALTER TABLE pin_resets ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0');
+  }
+
   // صلاحيات الحساب — JSON. NULL تعني حسابًا أُنشئ قبل الميزة، ويُعامل
   // على أنه كامل الصلاحيات (شرحه في src/permissions.js).
   if (!adminCols.includes('permissions')) {

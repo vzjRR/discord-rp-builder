@@ -23,6 +23,7 @@ const { sendBrandedDM } = require('./messageFormat');
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_ACTIVE_PER_HOUR = 3;
+const MAX_VERIFY_ATTEMPTS = 5; // تخمينات مسموحة للرمز الواحد قبل حرقه
 
 function hashCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
@@ -55,8 +56,11 @@ async function requestCode(discordUserId) {
   const admin = adminByDiscordId(discordUserId);
   if (!admin) return { ok: true }; // لا نكشف أن هذا المعرّف غير مسجّل
 
+  // نتجاوز الحدّ بصمت لا برسالة خطأ: رسالة "طلبت كثيرًا" لا تظهر إلا
+  // لمعرّف مسجّل، فتصير هي نفسها إجابةً على سؤال "هل لهذا الحساب صلاحية؟"
   if (recentRequestCount(admin.id) >= MAX_ACTIVE_PER_HOUR) {
-    return { ok: false, error: 'طلبت رموزًا كثيرة خلال الساعة الماضية، انتظر قليلًا ثم أعد المحاولة' };
+    console.warn(`pin reset: تجاوز الحدّ للحساب ${admin.id}`);
+    return { ok: true };
   }
 
   // طلب جديد يُبطل ما سبقه — حتى لا يبقى أكثر من رمز صالح في وقت واحد
@@ -78,17 +82,21 @@ async function requestCode(discordUserId) {
     `إن لم تكن أنت من طلب هذا الرمز فتجاهل هذه الرسالة، ولا تشاركها مع أحد ` +
     `مهما كان؛ من يملكها يملك الدخول إلى حسابك في المنصة.`;
 
+  // فشل الإرسال لا يغيّر ردّنا: لو قلنا "تعذّر إرسال الرمز" لَما ظهرت
+  // هذه الجملة إلا لمعرّف مسجّل فعلًا، فتحوّلت الصفحة إلى أداة يعرف بها
+  // الغريب مَن يملك صلاحية على المنصة ومَن لا يملكها. الصفحة تُرشد من لم
+  // تصله رسالة إلى فحص إعداد رسائله الخاصة.
   try {
     await sendBrandedDM(admin.discord_user_id, { content: text, title: 'استرجاع الرقم السري' });
+    logAction({ id: admin.id, name: admin.name }, 'pin_reset.request', 'طلب رمز استرجاع الرقم السري');
   } catch (err) {
     console.error('pin reset DM failed:', err.message);
-    return {
-      ok: false,
-      error: 'تعذّر إرسال الرمز في الخاص. تأكد من أن رسائل السيرفر الخاصة مفتوحة لديك ثم أعد المحاولة',
-    };
+    logAction(
+      { id: admin.id, name: admin.name },
+      'pin_reset.request',
+      'طُلب رمز استرجاع لكن تعذّر إيصاله في الخاص'
+    );
   }
-
-  logAction({ id: admin.id, name: admin.name }, 'pin_reset.request', 'طلب رمز استرجاع الرقم السري');
   return { ok: true };
 }
 
@@ -99,15 +107,36 @@ async function verifyCode(discordUserId, code) {
   const admin = adminByDiscordId(discordUserId);
   if (!admin) return { ok: false, error: 'الرمز غير صحيح أو انتهت صلاحيته' };
 
+  // الرمز ستة أرقام، والحدّ لكل عنوان IP وحده لا يكفي: من يوزّع المحاولات
+  // على عناوين كثيرة يلتفّ عليه. فنحصي المحاولات على الرمز نفسه، وبعد
+  // MAX_VERIFY_ATTEMPTS يُحرق الرمز ويلزم طلب غيره — فيصير عدد التخمينات
+  // المتاح لكل رمز محدودًا مهما تعدّدت العناوين.
+  const active = db
+    .prepare(
+      `SELECT id, expires_at, attempts FROM pin_resets
+        WHERE admin_id = ? AND used_at IS NULL
+        ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(admin.id);
+
+  if (!active) return { ok: false, error: 'الرمز غير صحيح أو انتهت صلاحيته' };
+
+  if (active.attempts >= MAX_VERIFY_ATTEMPTS) {
+    db.prepare("UPDATE pin_resets SET used_at = datetime('now') WHERE id = ?").run(active.id);
+    return { ok: false, error: 'محاولات كثيرة على هذا الرمز. اطلب رمزًا جديدًا' };
+  }
+
   const row = db
     .prepare(
       `SELECT id, expires_at FROM pin_resets
-        WHERE admin_id = ? AND code_hash = ? AND used_at IS NULL
-        ORDER BY created_at DESC LIMIT 1`
+        WHERE id = ? AND code_hash = ?`
     )
-    .get(admin.id, hashCode(String(code || '').trim()));
+    .get(active.id, hashCode(String(code || '').trim()));
 
-  if (!row) return { ok: false, error: 'الرمز غير صحيح أو انتهت صلاحيته' };
+  if (!row) {
+    db.prepare('UPDATE pin_resets SET attempts = attempts + 1 WHERE id = ?').run(active.id);
+    return { ok: false, error: 'الرمز غير صحيح أو انتهت صلاحيته' };
+  }
   if (new Date(row.expires_at).getTime() < Date.now()) {
     db.prepare("UPDATE pin_resets SET used_at = datetime('now') WHERE id = ?").run(row.id);
     return { ok: false, error: 'الرمز غير صحيح أو انتهت صلاحيته' };

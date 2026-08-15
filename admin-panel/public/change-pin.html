@@ -23,7 +23,7 @@
           <input type="password" inputmode="numeric" id="currentPin" maxlength="32" required autofocus>
         </div>
 
-        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الجديد (٤-٣٢ رقم)</label>
+        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الجديد (٦ إلى ٣٢ رقمًا)</label>
         <input type="password" inputmode="numeric" id="newPin" maxlength="32" required>
 
         <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">أكّد الرقم الجديد</label>
@@ -65,8 +65,8 @@
       const msg = document.getElementById('msg');
       const btn = e.target.querySelector('button');
 
-      if (!/^[0-9]{4,32}$/.test(newPin)) {
-        msg.textContent = 'الرقم الجديد لازم يكون أرقام فقط، من ٤ إلى ٣٢ رقم';
+      if (!/^[0-9]{6,32}$/.test(newPin)) {
+        msg.textContent = 'الرقم الجديد أرقام فقط، من ٦ إلى ٣٢ رقمًا';
         msg.className = 'msg show err';
         return;
       }

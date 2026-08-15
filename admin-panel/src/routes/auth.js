@@ -7,10 +7,35 @@ const permissions = require('../permissions');
 
 const router = express.Router();
 
+// محاولة تخمين ناجحة لا تترك أثرًا يميّزها عن دخول عادي، فالأثر الوحيد
+// المتاح للمالك هو رؤية المحاولات الفاشلة. لا نسجّل كل فشل (تخمين موزّع
+// يملأ السجل بملايين القيود على قرص محدود)، بل نسجّل الإشارة المفيدة:
+// عنوانًا استنفد حدّه، أو موجة فشل عامة — ومرة واحدة لكل نافذة.
+const reported = new Map(); // مفتاح -> آخر وقت تسجيل
+const REPORT_EVERY_MS = 5 * 60 * 1000;
+
+function reportOnce(key, action, detail) {
+  const now = Date.now();
+  if (now - (reported.get(key) || 0) < REPORT_EVERY_MS) return;
+  reported.set(key, now);
+  if (reported.size > 1000) {
+    for (const [k, t] of reported) if (now - t > REPORT_EVERY_MS) reported.delete(k);
+  }
+  logAction(null, action, detail);
+}
+
 router.post('/api/login', async (req, res) => {
   const ip = clientIp(req);
   const result = await auth.login(req.body?.pin, ip);
-  if (!result.ok) return res.status(401).json({ error: result.error });
+
+  if (!result.ok) {
+    if (result.rateLimited) {
+      reportOnce(`ip:${ip}`, 'login.blocked', `مُنعت محاولات دخول متكررة من ${ip}`);
+    } else if (result.globalFailures >= 30) {
+      reportOnce('surge', 'login.surge', `موجة محاولات دخول فاشلة (${result.globalFailures} خلال خمس دقائق)`);
+    }
+    return res.status(401).json({ error: result.error });
+  }
 
   res.cookie(auth.SESSION_COOKIE, result.token, {
     httpOnly: true,
@@ -41,12 +66,16 @@ router.get('/api/me', (req, res) => {
   });
 });
 
-const PIN_RE = /^[0-9]{4,32}$/;
+// الحدّ الأدنى مرفوع إلى ست خانات — الدخول بلا اسم مستخدم، فالرقم وحده
+// هو كل ما يقف بين الغريب والمنصة. شرحه في src/auth.js.
+const PIN_RE = new RegExp(`^[0-9]{${auth.MIN_PIN_LENGTH},${auth.MAX_PIN_LENGTH}}$`);
 
 router.put('/api/me/pin', auth.requireAuth, async (req, res) => {
   const { currentPin, newPin } = req.body || {};
   if (!PIN_RE.test(newPin || '')) {
-    return res.status(400).json({ error: 'الرقم السري الجديد أرقام فقط، من ٤ إلى ٣٢ رقمًا' });
+    return res.status(400).json({
+      error: `الرقم السري الجديد أرقام فقط، من ${auth.arabicDigits(auth.MIN_PIN_LENGTH)} إلى ${auth.arabicDigits(auth.MAX_PIN_LENGTH)} رقمًا`,
+    });
   }
   // جلسة الاسترجاع وحدها تُعفى من الرقم الحالي: صاحبها لا يعرفه أصلًا،
   // وقد أثبت هويته برمز وصله في الخاص، والجلسة محجوزة لهذه الخطوة وحدها.
