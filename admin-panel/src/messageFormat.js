@@ -10,7 +10,7 @@
 const discord = require('./discord');
 
 const BRAND_COLOR = 0xa855f7; // البنفسجي المعتمد في هوية Enclave
-const FOOTER_TEXT = 'مع تحيات إدارة ديسكورد سيرفر ENCLAVE RP';
+const FOOTER_TEXT = 'مع تحيات إدارة سيرفر الديسكورد';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 let cached = { at: 0, name: null, iconUrl: null };
