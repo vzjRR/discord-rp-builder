@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
-const { hashPin, requireAuth, requireOwner } = require('../auth');
+const auth = require('../auth');
+const { hashPin, requireAuth, requireOwner } = auth;
 const { logAction } = require('../audit');
 const { testRedirectUserId } = require('../testMode');
 const { publicBaseUrl } = require('../publicUrl');
@@ -11,7 +12,7 @@ const perms = require('../permissions');
 const router = express.Router();
 const guard = [requireAuth, requireOwner];
 
-const PIN_RE = /^[0-9]{4,32}$/;
+const PIN_RE = new RegExp(`^[0-9]{${auth.MIN_PIN_LENGTH},${auth.MAX_PIN_LENGTH}}$`);
 
 // يُلحق برسالة التعريف: من يستلم حسابًا يحتاج أن يعرف حدوده، وإلا جرّب
 // ما ليس له فظنّ المنصة معطلة.
@@ -123,7 +124,9 @@ router.post('/api/admins', guard, async (req, res) => {
     return res.status(400).json({ error: 'اسم العضو مطلوب' });
   }
   if (!PIN_RE.test(pin || '')) {
-    return res.status(400).json({ error: 'الرقم السري أرقام فقط، من ٤ إلى ٣٢ رقمًا' });
+    return res.status(400).json({
+      error: `الرقم السري أرقام فقط، من ${auth.arabicDigits(auth.MIN_PIN_LENGTH)} إلى ${auth.arabicDigits(auth.MAX_PIN_LENGTH)} رقمًا`,
+    });
   }
 
   // المالك يملك كل شيء ضمنًا فلا نخزّن له قائمة. وغيره: ما اختاره المالك،

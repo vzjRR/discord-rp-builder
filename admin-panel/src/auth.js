@@ -22,9 +22,36 @@ async function hashPin(pin) {
 }
 
 // ── تأمين محاولات الدخول ────────────────────────────────────────────
+//
+// الدخول بالرقم السري وحده بلا اسم مستخدم، فالحاجز الوحيد أمام التخمين
+// هو طول الرقم وحدّ المحاولات. ولأن المقارنة تجري على كل الحسابات، فإصابة
+// رقم أيّ حساب تكفي للدخول — أي أن مساحة البحث تُقسَم على عدد الحسابات.
+// لذلك طبقتان:
+//
+//   ١. حدّ لكل عنوان IP — يوقف التخمين من مصدر واحد.
+//   ٢. مُبطِّئ عام لكل المنصة — لأن الطبقة الأولى وحدها يلتفّ عليها من
+//      يوزّع محاولاته على عناوين كثيرة، وهو أمر رخيص اليوم. لا نمنع الدخول
+//      منعًا باتًّا عند الضغط (وإلا صار بيد أي مهاجم أن يُغلق المنصة على
+//      أهلها)، بل نُبطئ كل محاولة تدريجيًا فيصير التخمين الواسع غير مُجدٍ
+//      بينما يمرّ الداخل الشرعي بتأخير محتمَل.
 const attempts = new Map(); // ip -> [timestamps]
 const MAX_ATTEMPTS = 8;
 const WINDOW_MS = 5 * 60 * 1000;
+
+// الحدّ الأدنى لطول الرقم السري. أربع خانات تعني عشرة آلاف احتمال، وهي
+// لا شيء أمام تخمين موزّع؛ ستّ خانات تعني مليونًا، ومولّد المنصة يعطي تسعًا.
+const MIN_PIN_LENGTH = 6;
+const MAX_PIN_LENGTH = 32;
+
+/** يحوّل الأرقام إلى صورتها العربية-الهندية اتساقًا مع نصوص الواجهة. */
+function arabicDigits(n) {
+  return String(n).replace(/[0-9]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
+}
+
+let globalFailures = []; // طوابع زمنية لكل محاولة فاشلة مهما كان مصدرها
+const GLOBAL_WINDOW_MS = 5 * 60 * 1000;
+const GLOBAL_SOFT_LIMIT = 30; // بعده يبدأ التأخير التدريجي
+const GLOBAL_MAX_DELAY_MS = 4000;
 
 function isRateLimited(ip) {
   const now = Date.now();
@@ -37,6 +64,31 @@ function recordAttempt(ip) {
   const list = attempts.get(ip) || [];
   list.push(Date.now());
   attempts.set(ip, list);
+
+  // الخريطة تكبر بلا حدّ لو تُركت: مهاجم بعناوين كثيرة يملؤها حتى تستنفد
+  // الذاكرة. ننظّف المنتهي كلما تجاوز حجمها حدًّا معقولًا.
+  if (attempts.size > 5000) {
+    const now = Date.now();
+    for (const [key, times] of attempts) {
+      if (!times.some((t) => now - t < WINDOW_MS)) attempts.delete(key);
+    }
+  }
+}
+
+function recordGlobalFailure() {
+  const now = Date.now();
+  globalFailures = globalFailures.filter((t) => now - t < GLOBAL_WINDOW_MS);
+  globalFailures.push(now);
+  return globalFailures.length;
+}
+
+/** تأخير متصاعد يبدأ بعد GLOBAL_SOFT_LIMIT فشلًا في النافذة. */
+function globalDelayMs() {
+  const now = Date.now();
+  globalFailures = globalFailures.filter((t) => now - t < GLOBAL_WINDOW_MS);
+  const over = globalFailures.length - GLOBAL_SOFT_LIMIT;
+  if (over <= 0) return 0;
+  return Math.min(over * 150, GLOBAL_MAX_DELAY_MS);
 }
 
 // ── إنشاء أول حساب Owner تلقائيًا لو ما فيه ولا حساب بعد ───────────
@@ -118,11 +170,20 @@ async function applyOwnerPinReset() {
 // ── تسجيل الدخول ─────────────────────────────────────────────────
 async function login(pin, ip) {
   if (isRateLimited(ip)) {
-    return { ok: false, error: 'محاولات كثيرة، أعد المحاولة بعد قليل' };
+    return { ok: false, error: 'محاولات كثيرة، أعد المحاولة بعد قليل', rateLimited: true };
   }
   recordAttempt(ip);
 
-  if (!pin || typeof pin !== 'string' || pin.length < 4 || pin.length > 32) {
+  // التأخير العام يُطبَّق قبل أي عمل: هذا موضعه الوحيد المفيد، إذ الغرض
+  // إبطاء المهاجم لا إبطاء قاعدة البيانات.
+  const delay = globalDelayMs();
+  if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+
+  // نقبل الأرقام القصيرة القديمة عند الدخول (٤ خانات فما فوق) كي لا يُحجب
+  // من كان رقمه قصيرًا قبل رفع الحدّ، لكن أي رقم جديد لا بد أن يبلغ
+  // MIN_PIN_LENGTH — شوط التشديد يجري عند وضع الرقم لا عند استعماله.
+  if (!pin || typeof pin !== 'string' || pin.length < 4 || pin.length > MAX_PIN_LENGTH) {
+    recordGlobalFailure();
     return { ok: false, error: 'الرقم السري غير صحيح' };
   }
 
@@ -131,6 +192,9 @@ async function login(pin, ip) {
     // eslint-disable-next-line no-await-in-loop
     const match = await bcrypt.compare(pin, row.pin_hash);
     if (match) {
+      // دخول ناجح يمسح سجلّ فشل هذا العنوان: صاحب الحساب الذي أخطأ مرارًا
+      // ثم أصاب لا ينبغي أن يبقى محسوبًا على المهاجمين.
+      attempts.delete(ip);
       const { token, expiresAt } = createSessionFor(row.id);
       db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(row.id);
       return {
@@ -146,7 +210,8 @@ async function login(pin, ip) {
       };
     }
   }
-  return { ok: false, error: 'الرقم السري غير صحيح' };
+  const total = recordGlobalFailure();
+  return { ok: false, error: 'الرقم السري غير صحيح', globalFailures: total };
 }
 
 async function logout(token) {
@@ -221,6 +286,9 @@ module.exports = {
   SESSION_COOKIE,
   SESSION_TTL_MS,
   hashPin,
+  MIN_PIN_LENGTH,
+  MAX_PIN_LENGTH,
+  arabicDigits,
   ensureOwnerSeed,
   applyOwnerPinReset,
   createSessionFor,
