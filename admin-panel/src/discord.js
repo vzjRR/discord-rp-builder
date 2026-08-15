@@ -207,6 +207,15 @@ async function sendChannelMessage(channelId, content) {
   return request('POST', `/channels/${channelId}/messages`, { content });
 }
 
+async function sendDMEmbed(userId, embed) {
+  const channel = await request('POST', '/users/@me/channels', { recipient_id: userId });
+  return request('POST', `/channels/${channel.id}/messages`, { embeds: [embed] });
+}
+
+async function sendChannelEmbed(channelId, embed) {
+  return request('POST', `/channels/${channelId}/messages`, { embeds: [embed] });
+}
+
 // ── Moderation ────────────────────────────────────────────────────
 async function kickMember(userId, reason) {
   return requestWithReason('DELETE', `/guilds/${guildId}/members/${userId}`, undefined, reason);
@@ -328,6 +337,8 @@ module.exports = {
   listBans,
   sendDM,
   sendChannelMessage,
+  sendDMEmbed,
+  sendChannelEmbed,
   kickMember,
   banMember,
   unbanMember,

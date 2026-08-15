@@ -22,4 +22,13 @@ function listActions({ page = 1, pageSize = 50 } = {}) {
   return { rows, total: count, page, pageSize };
 }
 
-module.exports = { logAction, listActions };
+// يمسح السجل بالكامل ثم يسجّل عملية المسح نفسها فورًا — سجل يُمحى دون أن
+// يترك أثرًا لمن محاه يفقد قيمته كسجل.
+function clearActions(actor) {
+  const { count } = db.prepare('SELECT COUNT(*) AS count FROM audit_log').get();
+  db.prepare('DELETE FROM audit_log').run();
+  logAction(actor, 'logs.clear', `مسح سجل النشاط (${count} سجلًا)`);
+  return count;
+}
+
+module.exports = { logAction, listActions, clearActions };

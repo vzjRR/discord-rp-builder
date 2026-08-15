@@ -1,12 +1,11 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const { db } = require('../db');
 const { hashPin, requireAuth, requireOwner } = require('../auth');
 const { logAction } = require('../audit');
-const discord = require('../discord');
 const { testRedirectUserId } = require('../testMode');
 const { publicBaseUrl } = require('../publicUrl');
+const { sendBrandedDM } = require('../messageFormat');
+const tpl = require('../templates');
 
 const router = express.Router();
 const guard = [requireAuth, requireOwner];
@@ -25,65 +24,55 @@ router.get('/api/admins', guard, (req, res) => {
   res.json({ admins: rows });
 });
 
-// ── رسالة الترحيب/التعريف بالمنصة — نص افتراضي، Owner يقدر يعدّله ────
-// نفس أسلوب templates.js: نص افتراضي بالكود + تعديل اختياري يُحفظ كملف
-// JSON على الـ Volume (بدون ما نكرر جدول قاعدة بيانات لسطر نص وحيد).
-const ONBOARDING_OVERRIDE_PATH = process.env.ONBOARDING_MESSAGE_PATH || '/data/onboarding-message.json';
+// ── نصوص رسائل الحسابات (الترحيب وسحب الصلاحية) ────────────────────
+// النصوص وقراءتها وحفظها في src/templates.js، وهنا نعرضها للتعديل فقط.
+const TEMPLATE_KINDS = {
+  onboarding: {
+    read: tpl.readOnboardingTemplate,
+    isCustom: tpl.isOnboardingCustom,
+    write: tpl.writeOnboarding,
+    reset: tpl.resetOnboarding,
+    label: 'رسالة إنشاء الحساب',
+  },
+  revocation: {
+    read: tpl.readRevocationTemplate,
+    isCustom: tpl.isRevocationCustom,
+    write: tpl.writeRevocation,
+    reset: tpl.resetRevocation,
+    label: 'رسالة سحب الصلاحية',
+  },
+};
 
-const DEFAULT_ONBOARDING_MESSAGE = `🔐 **تم إنشاء حساب لك بمنصة إدارة Enclave RP**
-
-مرحبًا {name}! صار عندك دخول لمنصة التحكم الخاصة بالسيرفر، تقدر منها:
-• إرسال رسائل خاصة وإعلانات للأعضاء
-• أدوات إشراف (طرد / حظر / تايم أوت / حذف رسائل...)
-• إدارة قنوات ورولات السيرفر
-
-**رابط الدخول:**
-{platformUrl}
-
-**رقمك السري المؤقت:**
-{pin}
-
-⚠️ لازم تغيّر هذا الرقم فور أول تسجيل دخول قبل ما تقدر تستخدم أي شي بالمنصة.
-
-⚠️ **تحذير مهم:** هذا الرقم يعطيك صلاحيات شبه كاملة بالتحكم بالسيرفر. **ممنوع تشاركه مع أي أحد** — هو خاص فيك بس، ولو وصل لشخص ثاني بيقدر يتحكم بالسيرفر متنكّرًا باسمك. لو نسيته، تقدر تطلب رمز جديد من صفحة تسجيل الدخول.`;
-
-function readOnboardingOverride() {
-  try {
-    return JSON.parse(fs.readFileSync(ONBOARDING_OVERRIDE_PATH, 'utf8')).message;
-  } catch {
-    return null;
-  }
-}
-
-function fillTemplate(str, vars) {
-  return String(str).replace(/\{(\w+)\}/g, (_, key) => (vars[key] !== undefined ? vars[key] : `{${key}}`));
-}
-
-router.get('/api/admins/onboarding-message', guard, (req, res) => {
-  const custom = readOnboardingOverride();
-  res.json({ message: custom ?? DEFAULT_ONBOARDING_MESSAGE, isCustom: custom !== null });
+router.get('/api/admins/templates/:kind', guard, (req, res) => {
+  const kind = TEMPLATE_KINDS[req.params.kind];
+  if (!kind) return res.status(404).json({ error: 'نوع رسالة غير معروف' });
+  res.json({ message: kind.read(), isCustom: kind.isCustom() });
 });
 
-router.put('/api/admins/onboarding-message', guard, async (req, res) => {
+router.put('/api/admins/templates/:kind', guard, async (req, res) => {
+  const kind = TEMPLATE_KINDS[req.params.kind];
+  if (!kind) return res.status(404).json({ error: 'نوع رسالة غير معروف' });
   const { message } = req.body || {};
   if (!message || !String(message).trim()) {
-    return res.status(400).json({ error: 'نص الرسالة فاضي' });
+    return res.status(400).json({ error: 'نص الرسالة فارغ' });
   }
-  fs.mkdirSync(path.dirname(ONBOARDING_OVERRIDE_PATH), { recursive: true });
-  fs.writeFileSync(ONBOARDING_OVERRIDE_PATH, JSON.stringify({ message }, null, 2));
-  await logAction(req.admin, 'onboarding_message.update', 'عدّل رسالة الترحيب بالمنصة');
+  kind.write(message);
+  await logAction(req.admin, 'template.update', `عدّل ${kind.label}`);
   res.json({ ok: true });
 });
 
-router.post('/api/admins/onboarding-message/reset', guard, async (req, res) => {
-  try {
-    fs.unlinkSync(ONBOARDING_OVERRIDE_PATH);
-  } catch {
-    // ما فيه تعديل محفوظ أصلًا — تجاهل
-  }
-  await logAction(req.admin, 'onboarding_message.update', 'رجّع رسالة الترحيب بالمنصة للافتراضية');
+router.post('/api/admins/templates/:kind/reset', guard, async (req, res) => {
+  const kind = TEMPLATE_KINDS[req.params.kind];
+  if (!kind) return res.status(404).json({ error: 'نوع رسالة غير معروف' });
+  kind.reset();
+  await logAction(req.admin, 'template.update', `أعاد ${kind.label} إلى النص الافتراضي`);
   res.json({ ok: true });
 });
+
+// المسارات القديمة لرسالة الترحيب — مُبقاة كي لا تنكسر الواجهة الحالية
+router.get('/api/admins/onboarding-message', guard, (req, res) =>
+  res.json({ message: tpl.readOnboardingTemplate(), isCustom: tpl.isOnboardingCustom() })
+);
 
 router.post('/api/admins', guard, async (req, res) => {
   const { name, pin, isOwner, discordUserId } = req.body || {};
@@ -116,20 +105,25 @@ router.post('/api/admins', guard, async (req, res) => {
   if (discordUserId) {
     const test = testRedirectUserId();
     const target = test || discordUserId;
-    const platformUrl = publicBaseUrl(req);
-    const messageTemplate = readOnboardingOverride() ?? DEFAULT_ONBOARDING_MESSAGE;
     try {
-      await discord.sendDM(target, fillTemplate(messageTemplate, { name: name.trim(), pin, platformUrl }));
+      await sendBrandedDM(target, {
+        title: 'حساب جديد في منصة الإدارة',
+        content: tpl.fillTemplate(tpl.readOnboardingTemplate(), {
+          name: name.trim(),
+          pin,
+          platformUrl: publicBaseUrl(req),
+        }),
+      });
       dmSent = true;
       await logAction(
         req.admin,
         'admin.onboard_dm',
         test
-          ? `(وضع تجربة) رسالة تعريف كانت بتروح للعضو ${discordUserId} — تحويل لعضو التجربة`
-          : `أرسل رسالة تعريف وترحيب لحساب "${name.trim()}"`
+          ? `(وضع تجربة) رسالة التعريف كانت ستُرسل إلى العضو ${discordUserId} — حُوّلت إلى عضو التجربة`
+          : `أرسل رسالة التعريف بالمنصة إلى حساب "${name.trim()}"`
       );
     } catch (err) {
-      dmError = 'الحساب انسوى تمام، بس تعذّر إرسال رسالة التعريف (يمكن خصوصياته مقفلة) — سلّمه رقمه يدويًا.';
+      dmError = 'أُنشئ الحساب بنجاح، لكن تعذّر إرسال رسالة التعريف (قد تكون خصوصياته مغلقة) — سلّمه رقمه السري يدويًا.';
       console.error('admin onboarding DM failed:', err.message);
     }
   }
@@ -141,19 +135,51 @@ router.delete('/api/admins/:id', guard, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'معرّف غير صالح' });
 
-  const target = db.prepare('SELECT name, is_owner AS isOwner FROM admins WHERE id = ?').get(id);
+  const target = db
+    .prepare('SELECT name, is_owner AS isOwner, discord_user_id AS discordUserId FROM admins WHERE id = ?')
+    .get(id);
   if (!target) return res.status(404).json({ error: 'الحساب غير موجود' });
 
   if (target.isOwner) {
     const { count } = db.prepare('SELECT COUNT(*) AS count FROM admins WHERE is_owner = 1').get();
     if (count <= 1) {
-      return res.status(400).json({ error: 'ما تقدر تحذف آخر حساب Owner بالمنصة' });
+      return res.status(400).json({ error: 'لا يمكن حذف آخر حساب مالك في المنصة' });
     }
   }
 
+  // حذف الحساب يحذف جلساته تلقائيًا (ON DELETE CASCADE) فيخرج فورًا
   db.prepare('DELETE FROM admins WHERE id = ?').run(id);
   await logAction(req.admin, 'admin.revoke', `حذف حساب "${target.name}"`);
-  res.json({ ok: true });
+
+  // نُعلم العضو بسحب صلاحيته — بعد الحذف، فلا يُبقيه فشل الإرسال بصلاحية
+  let dmSent = false;
+  let dmError = null;
+  if (target.discordUserId) {
+    const test = testRedirectUserId();
+    const notifyTarget = test || target.discordUserId;
+    try {
+      await sendBrandedDM(notifyTarget, {
+        title: 'سحب صلاحية الدخول',
+        content: tpl.fillTemplate(tpl.readRevocationTemplate(), {
+          name: target.name,
+          platformUrl: publicBaseUrl(req),
+        }),
+      });
+      dmSent = true;
+      await logAction(
+        req.admin,
+        'admin.revoke_dm',
+        test
+          ? `(وضع تجربة) إشعار سحب الصلاحية كان سيُرسل إلى ${target.discordUserId} — حُوّل إلى عضو التجربة`
+          : `أرسل إشعار سحب الصلاحية إلى "${target.name}"`
+      );
+    } catch (err) {
+      dmError = 'أُلغي الحساب بنجاح، لكن تعذّر إبلاغ العضو (قد تكون خصوصياته مغلقة).';
+      console.error('admin revocation DM failed:', err.message);
+    }
+  }
+
+  res.json({ ok: true, dmSent, dmError });
 });
 
 module.exports = router;

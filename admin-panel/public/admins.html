@@ -39,6 +39,32 @@
     </div>
 
     <div class="card">
+      <h2>معاينة الرسائل</h2>
+      <p class="subtitle">
+        يرسل نسخة من كل نوع رسالة تصدر عن المنصة إلى حسابك في ديسكورد،
+        لتراها كما يستلمها العضو تمامًا قبل إرسالها إلى أي أحد.
+      </p>
+      <label>مُعرّف حساب ديسكورد الذي ستصله المعاينة</label>
+      <input type="text" inputmode="numeric" id="previewTarget" placeholder="مثال: 1303195553068482591">
+      <button class="btn small" id="sendPreview">إرسال المعاينة</button>
+      <div class="msg" id="previewMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>رسالة سحب الصلاحية</h2>
+      <p class="subtitle">
+        تُرسل تلقائيًا إلى العضو عند حذف حسابه من المنصة. المتغيرات المتاحة:
+        {name} و{platformUrl}.
+      </p>
+      <textarea id="revocationMsg" rows="8" style="font-family:inherit"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn small" id="saveRevocation">حفظ</button>
+        <button class="btn small ghost" id="resetRevocation">إعادة النص الافتراضي</button>
+      </div>
+      <div class="msg" id="revocationStatus"></div>
+    </div>
+
+    <div class="card">
       <h2>رسالة الترحيب بالمنصة</h2>
       <p class="subtitle">هذي الرسالة تروح تلقائيًا بالخاص لأي عضو تسوّي له حساب. تقدر تعدّلها براحتك — استخدم {name} و{pin} و{platformUrl} وبتتعوّض تلقائيًا.</p>
       <textarea id="onboardingMsg" rows="10" style="font-family:inherit"></textarea>
@@ -147,6 +173,64 @@
     } catch { /* تجاهل — الكارد يضل مخفي */ }
   }
   loadRequests();
+
+  // ── معاينة الرسائل ────────────────────────────────────────────
+  (async () => {
+    try {
+      const { admin } = await api('GET', '/api/me');
+      if (admin.discordUserId) document.getElementById('previewTarget').value = admin.discordUserId;
+    } catch { /* تجاهل */ }
+  })();
+
+  document.getElementById('sendPreview').addEventListener('click', async () => {
+    const targetUserId = document.getElementById('previewTarget').value.trim();
+    const msgEl = document.getElementById('previewMsg');
+    const btn = document.getElementById('sendPreview');
+    if (!/^[0-9]{15,25}$/.test(targetUserId)) {
+      return showMsg(msgEl, 'اكتب مُعرّف حساب ديسكورد صحيح (أرقام فقط)', false);
+    }
+    btn.disabled = true;
+    showMsg(msgEl, 'جارٍ الإرسال…', true);
+    try {
+      const data = await api('POST', '/api/preview/messages', { targetUserId });
+      const failed = data.failed.length ? ` وتعذّر إرسال ${data.failed.length}.` : '';
+      showMsg(msgEl, `أُرسلت ${data.sent.length} رسالة إلى ذلك الحساب.${failed}`, !data.failed.length);
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ── رسالة سحب الصلاحية ────────────────────────────────────────
+  const revocationTextarea = document.getElementById('revocationMsg');
+  attachFormatToolbar(revocationTextarea);
+
+  async function loadRevocation() {
+    try {
+      const { message } = await api('GET', '/api/admins/templates/revocation');
+      revocationTextarea.value = message;
+    } catch { /* تجاهل */ }
+  }
+  loadRevocation();
+
+  document.getElementById('saveRevocation').addEventListener('click', async () => {
+    const statusEl = document.getElementById('revocationStatus');
+    try {
+      await api('PUT', '/api/admins/templates/revocation', { message: revocationTextarea.value });
+      showMsg(statusEl, 'تم الحفظ.', true);
+    } catch (err) { showMsg(statusEl, err.message, false); }
+  });
+
+  document.getElementById('resetRevocation').addEventListener('click', async () => {
+    if (!confirm('إعادة رسالة سحب الصلاحية إلى النص الافتراضي؟')) return;
+    const statusEl = document.getElementById('revocationStatus');
+    try {
+      await api('POST', '/api/admins/templates/revocation/reset');
+      await loadRevocation();
+      showMsg(statusEl, 'أُعيد النص الافتراضي.', true);
+    } catch (err) { showMsg(statusEl, err.message, false); }
+  });
 
   // ── رسالة الترحيب بالمنصة ─────────────────────────────────────
   const onboardingTextarea = document.getElementById('onboardingMsg');

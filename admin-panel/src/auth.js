@@ -107,7 +107,7 @@ async function resolveSession(token) {
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT s.expires_at, a.id, a.name, a.is_owner, a.must_change_pin
+      `SELECT s.expires_at, a.id, a.name, a.is_owner, a.must_change_pin, a.discord_user_id
          FROM sessions s JOIN admins a ON a.id = s.admin_id
         WHERE s.token_hash = ?`
     )
@@ -122,6 +122,7 @@ async function resolveSession(token) {
     name: row.name,
     isOwner: Boolean(row.is_owner),
     mustChangePin: Boolean(row.must_change_pin),
+    discordUserId: row.discord_user_id || null,
   };
 }
 
