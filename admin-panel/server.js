@@ -107,6 +107,9 @@ const FRESH_PIN_EXEMPT_PATHS = new Set([
   '/change-pin',
   '/request-access',
   '/api/access-requests',
+  '/forgot-pin',
+  '/api/pin-reset/request',
+  '/api/pin-reset/verify',
 ]);
 app.use((req, res, next) => {
   if (req.admin?.mustChangePin && !FRESH_PIN_EXEMPT_PATHS.has(req.path)) {
@@ -129,6 +132,7 @@ app.use(require('./src/routes/server'));
 app.use(require('./src/routes/templates'));
 app.use(require('./src/routes/access'));
 app.use(require('./src/routes/preview'));
+app.use(require('./src/routes/pinReset'));
 
 // ── صفحات الواجهة (كل وحدة محمية بحسب الحاجة) ────────────────────
 const page = (name) => path.join(__dirname, 'public', name);
@@ -145,6 +149,12 @@ app.get('/install', (req, res) => res.sendFile(page('install.html')));
 app.get('/request-access', (req, res) => {
   if (req.admin && !req.admin.mustChangePin) return res.redirect('/');
   res.sendFile(page('request-access.html'));
+});
+
+// استرجاع رقم سري منسي — عامة بالضرورة: من نسي رقمه لا يستطيع الدخول
+app.get('/forgot-pin', (req, res) => {
+  if (req.admin && !req.admin.mustChangePin) return res.redirect('/');
+  res.sendFile(page('forgot-pin.html'));
 });
 
 // تغيير الرقم السري — تحتاج تسجيل دخول بس، تشتغل حتى لو mustChangePin
@@ -172,6 +182,7 @@ const PORT = process.env.PORT || 3000;
 (async () => {
   await migrate();
   await auth.ensureOwnerSeed();
+  await auth.applyOwnerPinReset();
   app.listen(PORT, () => {
     console.log(`✅ منصة الإدارة شغالة على المنفذ ${PORT}`);
     if (process.env.TEST_MODE_REDIRECT_USER_ID) {

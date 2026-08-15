@@ -58,6 +58,62 @@ async function ensureOwnerSeed() {
   console.log(`✅ تم إنشاء حساب Owner باسم "${name}" من OWNER_SETUP_PIN — سجل دخول فيه وغيّر رقمك السري فورًا.`);
 }
 
+// ── إنشاء جلسة ───────────────────────────────────────────────────
+// مشترك بين الدخول العادي واسترجاع الرقم السري المنسي.
+function createSessionFor(adminId, { viaRecovery = false } = {}) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  db.prepare('INSERT INTO sessions (token_hash, admin_id, expires_at, via_recovery) VALUES (?, ?, ?, ?)').run(
+    hashToken(token),
+    adminId,
+    expiresAt.toISOString(),
+    viaRecovery ? 1 : 0
+  );
+  return { token, expiresAt };
+}
+
+// ── استرجاع رقم المالك من متغيرات البيئة (مسار احتياطي أخير) ────────
+// المسار المعتاد للاسترجاع رمز يصل في الخاص (src/pinReset.js)، وهو يكفي
+// ما دام حساب المالك مرتبطًا بمعرّف ديسكورد. هذا البديل موجود للحالة
+// التي ينكسر فيها ذلك — لا معرّف مرتبط، أو البوت لا يستطيع مراسلته —
+// فلا يبقى طريق للدخول إطلاقًا.
+//
+// يُطبَّق مرة واحدة لكل قيمة (نحفظ بصمتها) حتى لا يعيد متغيّرٌ منسيٌّ في
+// الإعدادات تعيينَ الرقم عند كل إقلاع، ويُلزم صاحبه بتغيير الرقم فور
+// دخوله فلا تبقى قيمة المتغيّر صالحة للدخول.
+async function applyOwnerPinReset() {
+  const pin = String(process.env.OWNER_RESET_PIN || '').trim();
+  if (!pin) return;
+
+  if (!/^[0-9]{6,32}$/.test(pin)) {
+    console.error('❌ OWNER_RESET_PIN لا بد أن يكون أرقامًا فقط، من ٦ إلى ٣٢ رقمًا — تم تجاهله.');
+    return;
+  }
+
+  const fingerprint = crypto.createHash('sha256').update(pin).digest('hex');
+  const applied = db.prepare("SELECT value FROM settings WHERE key = 'owner_reset_fingerprint'").get();
+  if (applied?.value === fingerprint) {
+    console.warn('⚠️  OWNER_RESET_PIN ما زال موجودًا في الإعدادات وقد استُعمل من قبل — احذفه.');
+    return;
+  }
+
+  const owner = db.prepare('SELECT id, name FROM admins WHERE is_owner = 1 ORDER BY id ASC LIMIT 1').get();
+  if (!owner) return; // لا يوجد مالك بعد — ensureOwnerSeed هو المسؤول عن ذلك
+
+  const pinHash = await hashPin(pin);
+  db.prepare('UPDATE admins SET pin_hash = ?, must_change_pin = 1 WHERE id = ?').run(pinHash, owner.id);
+  db.prepare('DELETE FROM sessions WHERE admin_id = ?').run(owner.id);
+  db.prepare(
+    "INSERT INTO settings (key, value) VALUES ('owner_reset_fingerprint', ?) " +
+      'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+  ).run(fingerprint);
+
+  console.warn(
+    `⚠️  أُعيد تعيين الرقم السري لحساب المالك "${owner.name}" من OWNER_RESET_PIN. ` +
+      'سجّل الدخول به الآن وغيّره فورًا، ثم احذف المتغيّر من الإعدادات.'
+  );
+}
+
 // ── تسجيل الدخول ─────────────────────────────────────────────────
 async function login(pin, ip) {
   if (isRateLimited(ip)) {
@@ -74,13 +130,7 @@ async function login(pin, ip) {
     // eslint-disable-next-line no-await-in-loop
     const match = await bcrypt.compare(pin, row.pin_hash);
     if (match) {
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-      db.prepare('INSERT INTO sessions (token_hash, admin_id, expires_at) VALUES (?, ?, ?)').run(
-        hashToken(token),
-        row.id,
-        expiresAt.toISOString()
-      );
+      const { token, expiresAt } = createSessionFor(row.id);
       db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(row.id);
       return {
         ok: true,
@@ -107,7 +157,7 @@ async function resolveSession(token) {
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT s.expires_at, a.id, a.name, a.is_owner, a.must_change_pin, a.discord_user_id
+      `SELECT s.expires_at, s.via_recovery, a.id, a.name, a.is_owner, a.must_change_pin, a.discord_user_id
          FROM sessions s JOIN admins a ON a.id = s.admin_id
         WHERE s.token_hash = ?`
     )
@@ -123,19 +173,28 @@ async function resolveSession(token) {
     isOwner: Boolean(row.is_owner),
     mustChangePin: Boolean(row.must_change_pin),
     discordUserId: row.discord_user_id || null,
+    viaRecovery: Boolean(row.via_recovery),
   };
 }
 
 // ── تغيير الرقم السري (ذاتي — يحتاج الرقم الحالي) ───────────────────
-async function changePin(adminId, currentPin, newPin) {
+// الاستثناء الوحيد: جلسة نشأت عن استرجاع رقم منسي. صاحبها أثبت هويته
+// برمز وصله في الخاص، ولا يعرف رقمه الحالي أصلًا، فطلبه منه يعني ألا
+// يستطيع الاسترجاع أحد. تلك الجلسة لا تصلح لغير هذا (بوابة
+// mustChangePin تحجب كل ما عداه).
+async function changePin(adminId, currentPin, newPin, { skipCurrentPin = false } = {}) {
   const row = db.prepare('SELECT pin_hash FROM admins WHERE id = ?').get(adminId);
   if (!row) return { ok: false, error: 'الحساب غير موجود' };
 
-  const match = await bcrypt.compare(String(currentPin || ''), row.pin_hash);
-  if (!match) return { ok: false, error: 'رقمك السري الحالي غير صحيح' };
+  if (!skipCurrentPin) {
+    const match = await bcrypt.compare(String(currentPin || ''), row.pin_hash);
+    if (!match) return { ok: false, error: 'رقمك السري الحالي غير صحيح' };
+  }
 
   const newHash = await hashPin(newPin);
   db.prepare('UPDATE admins SET pin_hash = ?, must_change_pin = 0 WHERE id = ?').run(newHash, adminId);
+  // امتياز الاسترجاع يُستهلك بمجرد وضع الرقم الجديد
+  db.prepare('UPDATE sessions SET via_recovery = 0 WHERE admin_id = ?').run(adminId);
   return { ok: true };
 }
 
@@ -160,6 +219,8 @@ module.exports = {
   SESSION_TTL_MS,
   hashPin,
   ensureOwnerSeed,
+  applyOwnerPinReset,
+  createSessionFor,
   login,
   logout,
   resolveSession,

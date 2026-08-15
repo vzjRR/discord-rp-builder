@@ -43,14 +43,21 @@ router.put('/api/me/pin', auth.requireAuth, async (req, res) => {
   if (!PIN_RE.test(newPin || '')) {
     return res.status(400).json({ error: 'الرقم السري الجديد لازم يكون أرقام فقط، من ٤ إلى ٣٢ رقم' });
   }
-  if (newPin === currentPin) {
-    return res.status(400).json({ error: 'اختر رقم مختلف عن الرقم الحالي' });
+  // جلسة الاسترجاع وحدها تُعفى من الرقم الحالي: صاحبها لا يعرفه أصلًا،
+  // وقد أثبت هويته برمز وصله في الخاص، والجلسة محجوزة لهذه الخطوة وحدها.
+  const recovering = Boolean(req.admin.viaRecovery && req.admin.mustChangePin);
+  if (!recovering && newPin === currentPin) {
+    return res.status(400).json({ error: 'اختر رقمًا مختلفًا عن رقمك الحالي' });
   }
 
-  const result = await auth.changePin(req.admin.id, currentPin, newPin);
+  const result = await auth.changePin(req.admin.id, currentPin, newPin, { skipCurrentPin: recovering });
   if (!result.ok) return res.status(401).json({ error: result.error });
 
-  await logAction(req.admin, 'admin.change_pin', 'غيّر رقمه السري');
+  await logAction(
+    req.admin,
+    'admin.change_pin',
+    recovering ? 'وضع رقمًا سريًا جديدًا بعد استرجاع منسي' : 'غيّر رقمه السري'
+  );
   res.json({ ok: true });
 });
 

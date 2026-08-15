@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>استرجاع الرقم السري — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card" style="max-width:420px">
+      <img src="/icons/icon-192.png" alt="Enclave RP">
+      <h1>استرجاع الرقم السري</h1>
+
+      <!-- الخطوة الأولى: طلب الرمز -->
+      <div id="step1">
+        <p class="subtitle">
+          اكتب معرّف حسابك في ديسكورد، وسيصلك رمز مؤقت في رسالة خاصة من بوت
+          السيرفر. تأكّد من أن حسابك يستقبل الرسائل الخاصة من أعضاء السيرفر.
+        </p>
+        <form id="requestForm" style="text-align:right">
+          <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">معرّف حسابك في ديسكورد</label>
+          <input type="text" inputmode="numeric" id="discordId" maxlength="25"
+                 placeholder="مثال: 1303195553068482591" autofocus required>
+          <button type="submit" class="btn" style="width:100%;margin-top:14px">أرسل لي الرمز</button>
+          <div class="msg" id="requestMsg"></div>
+        </form>
+      </div>
+
+      <!-- الخطوة الثانية: إدخال الرمز -->
+      <div id="step2" style="display:none">
+        <p class="subtitle">
+          أدخل الرمز المكوّن من ستة أرقام الذي وصلك في الخاص. صالح خمس عشرة
+          دقيقة ولاستعمال واحد، وبعده تضع رقمك السري الجديد مباشرة.
+        </p>
+        <form id="verifyForm" style="text-align:right">
+          <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرمز المؤقت</label>
+          <input type="text" inputmode="numeric" id="code" class="pin-input" maxlength="6"
+                 placeholder="••••••" required>
+          <button type="submit" class="btn" style="width:100%;margin-top:14px">تأكيد</button>
+          <div class="msg" id="verifyMsg"></div>
+        </form>
+        <p class="subtitle" style="margin-top:14px">
+          <a href="#" id="backToStep1">لم يصلني الرمز — أعد الإرسال</a>
+        </p>
+      </div>
+
+      <p class="subtitle" style="margin-top:18px">
+        <a href="/login">العودة إلى تسجيل الدخول</a>
+      </p>
+      <p class="subtitle" style="margin-top:6px">
+        لا تملك حسابًا على المنصة؟ <a href="/request-access">اطلب رمز دخول</a>
+      </p>
+    </div>
+  </div>
+  <script>
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+
+    function show(el, text, ok) {
+      el.textContent = text;
+      el.className = 'msg show ' + (ok ? 'ok' : 'err');
+    }
+
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const discordUserId = document.getElementById('discordId').value.trim();
+      const msg = document.getElementById('requestMsg');
+      const btn = e.target.querySelector('button');
+
+      if (!/^[0-9]{15,25}$/.test(discordUserId)) {
+        return show(msg, 'اكتب معرّف حساب ديسكورد صحيح (أرقام فقط)', false);
+      }
+
+      btn.disabled = true;
+      show(msg, 'جارٍ الإرسال…', true);
+      try {
+        const res = await fetch('/api/pin-reset/request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discordUserId }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'تعذّر إرسال الرمز');
+        step1.style.display = 'none';
+        step2.style.display = 'block';
+        document.getElementById('code').focus();
+      } catch (err) {
+        show(msg, err.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const discordUserId = document.getElementById('discordId').value.trim();
+      const code = document.getElementById('code').value.trim();
+      const msg = document.getElementById('verifyMsg');
+      const btn = e.target.querySelector('button');
+
+      if (!/^[0-9]{6}$/.test(code)) {
+        return show(msg, 'الرمز مكوّن من ستة أرقام', false);
+      }
+
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/pin-reset/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discordUserId, code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'الرمز غير صحيح');
+        window.location.href = '/change-pin';
+      } catch (err) {
+        show(msg, err.message, false);
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('backToStep1').addEventListener('click', (e) => {
+      e.preventDefault();
+      step2.style.display = 'none';
+      step1.style.display = 'block';
+      document.getElementById('requestMsg').className = 'msg';
+    });
+  </script>
+</body>
+</html>

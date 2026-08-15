@@ -18,8 +18,10 @@
       <p class="subtitle" id="subtitle">اختر رقم سري جديد تحفظه لنفسك</p>
 
       <form id="changeForm" style="text-align:right">
-        <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الحالي</label>
-        <input type="password" inputmode="numeric" id="currentPin" maxlength="32" required autofocus>
+        <div id="currentPinRow">
+          <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الحالي</label>
+          <input type="password" inputmode="numeric" id="currentPin" maxlength="32" required autofocus>
+        </div>
 
         <label style="display:block;font-size:13px;color:var(--text-dim);margin:14px 0 6px">الرقم الجديد (٤-٣٢ رقم)</label>
         <input type="password" inputmode="numeric" id="newPin" maxlength="32" required>
@@ -38,9 +40,17 @@
         const res = await fetch('/api/me');
         const data = await res.json();
         if (!res.ok) throw new Error();
-        if (data.admin.mustChangePin) {
+        // القادم من الاسترجاع لا يعرف رقمه الحالي، فلا معنى لمطالبته به
+        if (data.admin.viaRecovery && data.admin.mustChangePin) {
+          const row = document.getElementById('currentPinRow');
+          row.style.display = 'none';
+          document.getElementById('currentPin').required = false;
           document.getElementById('subtitle').textContent =
-            'لازم تغيّر رقمك السري قبل ما تقدر تستخدم المنصة — هذي خطوة إلزامية أول دخول.';
+            'تم التحقق من هويتك. ضع رقمك السري الجديد الآن لاستعادة الدخول إلى المنصة.';
+          document.getElementById('newPin').focus();
+        } else if (data.admin.mustChangePin) {
+          document.getElementById('subtitle').textContent =
+            'عليك تغيير رقمك السري قبل استخدام المنصة — خطوة إلزامية عند أول دخول.';
         }
       } catch {
         window.location.href = '/login';
