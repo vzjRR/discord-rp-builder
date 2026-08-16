@@ -138,6 +138,7 @@ app.use(require('./src/routes/access'));
 app.use(require('./src/routes/preview'));
 app.use(require('./src/routes/pinReset'));
 app.use(require('./src/routes/status'));
+app.use(require('./src/routes/backup'));
 
 // أخطاء رفع المرفقات لها رسائل خاصة — قبل معالج الأخطاء العام
 app.use(require('./src/uploads').uploadErrorHandler);
