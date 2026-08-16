@@ -1,0 +1,40 @@
+#cloud-config
+# يُلصق كاملًا في خانة "user data" عند إنشاء خادم Oracle Cloud:
+#   Advanced options ← Management ← Paste cloud-init script
+#
+# ينشر كل شيء على هذا الخادم: المنصة، وبوت Enclave، وبوت LSPD.
+# الخادم يهيّئ نفسه عند أول إقلاع، فلا تحتاج اتصال SSH لتنصيبه.
+#
+# ⚠️ لا تضع أي سرّ هنا. ما يُمرَّر إلى cloud-init يبقى مقروءًا في بيانات
+# المثيل (metadata) لأي عملية على الخادم. الأسرار تُوضع بعد التهيئة في
+# /etc/enclave/ بصلاحية القراءة للجذر وحده.
+
+package_update: true
+
+write_files:
+  - path: /usr/local/bin/bootstrap-all.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > >(tee -a /var/log/bootstrap-all.log) 2>&1
+      echo "=== بدء التهيئة: $(date -Is) ==="
+
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -y
+      apt-get install -y --no-install-recommends git curl ca-certificates
+
+      # نجلب المستودع ثم نسلّم العمل لسكربت النشر الموجود فيه، فيبقى
+      # منطق التهيئة في مكان واحد يُراجع ويُحدَّث مع الكود لا في نسخة
+      # مجمّدة داخل بيانات المثيل.
+      rm -rf /opt/enclave
+      git clone --depth 1 https://github.com/vzjRR/discord-rp-builder.git /opt/enclave
+      bash /opt/enclave/deploy/all-in-one/setup.sh
+
+      echo "=== اكتملت التهيئة: $(date -Is) ==="
+      echo "الخطوات المتبقية في: /opt/enclave/deploy/all-in-one/README.md"
+
+runcmd:
+  - [ bash, /usr/local/bin/bootstrap-all.sh ]
+
+final_message: "جاهز بعد $UPTIME ثانية — راجع /var/log/bootstrap-all.log"

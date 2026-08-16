@@ -1,20 +1,13 @@
 #!/usr/bin/env bash
-# نشر بوت سيرفر Enclave وحده (الترحيب + تسجيل حركة الأعضاء).
+# نشر بوت سيرفر Enclave وحده على هذا الخادم.
+# للنشر المجمّع مع المنصة وبوت LSPD على خادم واحد: deploy/all-in-one/
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/../common/install-base.sh"
+source "$DIR/install.sh"
 
 base_install
-mkdir -p /data && chown -R "$RUN_USER:$RUN_USER" /data && chmod 750 /data
-
-write_env_template /etc/enclave/enclave-bot.env 'DISCORD_TOKEN=
-GUILD_ID=
-
-EVENTS_DB_PATH=/data/server-events.db
-MESSAGE_TEMPLATES_PATH=/data/message-templates.json'
-
-install_deps welcome-bot
-install_unit "$DIR/enclave-bot.service"
+install_enclave_bot "$DIR"
 
 log "جاهز"
 cat <<'DONE'
