@@ -1,13 +1,17 @@
 #cloud-config
-# يُلصق كاملًا في خانة "user data" عند إنشاء خادم Oracle Cloud:
-#   Advanced options ← Management ← Paste cloud-init script
+# Paste this whole file into the Oracle Cloud console when creating the
+# instance:  Advanced options -> Management -> Paste cloud-init script
 #
-# ينشر هذه الخدمة وحدها. الخادم يهيّئ نفسه عند أول إقلاع، فلا تحتاج
-# اتصال SSH لتنصيبه.
+# Installs the Enclave server bot only.
+# The server configures itself on first boot. No SSH needed to install it.
 #
-# ⚠️ لا تضع أي سرّ هنا. ما يُمرَّر إلى cloud-init يبقى مقروءًا في بيانات
-# المثيل (metadata) لأي عملية على الخادم. الأسرار تُوضع بعد التهيئة في
-# /etc/enclave/ بصلاحية القراءة للجذر وحده.
+# ASCII only, on purpose. The console base64-encodes this field and its
+# validator rejects non-ASCII payloads with "Incorrectly formatted request".
+# The Arabic documentation lives in the README files instead.
+#
+# WARNING: put no secrets here. Anything passed to cloud-init stays readable
+# in the instance metadata to every process on the machine. Secrets go in
+# /etc/enclave/ after setup, readable only by root.
 
 package_update: true
 
@@ -18,23 +22,23 @@ write_files:
       #!/usr/bin/env bash
       set -euo pipefail
       exec > >(tee -a /var/log/bootstrap-enclave-bot.log) 2>&1
-      echo "=== بدء التهيئة: $(date -Is) ==="
+      echo "=== setup started: $(date -Is) ==="
 
       export DEBIAN_FRONTEND=noninteractive
       apt-get update -y
       apt-get install -y --no-install-recommends git curl ca-certificates
 
-      # نجلب المستودع ثم نسلّم العمل لسكربت النشر الموجود فيه، فيبقى
-      # منطق التهيئة في مكان واحد يُراجع ويُحدَّث مع الكود لا في نسخة
-      # مجمّدة داخل بيانات المثيل.
+      # Clone the repository, then hand off to the deploy script inside it,
+      # so the setup logic lives in one reviewable place rather than frozen
+      # in a copy inside the instance metadata.
       rm -rf /opt/enclave
       git clone --depth 1 https://github.com/vzjRR/discord-rp-builder.git /opt/enclave
       bash /opt/enclave/deploy/enclave-bot/setup.sh
 
-      echo "=== اكتملت التهيئة: $(date -Is) ==="
-      echo "الخطوات المتبقية في: /opt/enclave/deploy/enclave-bot/"
+      echo "=== setup finished: $(date -Is) ==="
+      echo "Remaining steps: /opt/enclave/deploy/enclave-bot/README.md"
 
 runcmd:
   - [ bash, /usr/local/bin/bootstrap-enclave-bot.sh ]
 
-final_message: "جاهز بعد $UPTIME ثانية — راجع /var/log/bootstrap-enclave-bot.log"
+final_message: "Ready after $UPTIME seconds - see /var/log/bootstrap-enclave-bot.log"
