@@ -1,5 +1,5 @@
 [Unit]
-Description=بوت الترحيب — Enclave RP
+Description=بوت سيرفر Enclave (ترحيب + تتبّع)
 After=network-online.target
 Wants=network-online.target
 
@@ -7,17 +7,17 @@ Wants=network-online.target
 Type=simple
 User=enclave
 WorkingDirectory=/opt/enclave/welcome-bot
-EnvironmentFile=/etc/enclave/enclave.env
+EnvironmentFile=/etc/enclave/enclave-bot.env
 Environment=NODE_ENV=production
 # الخطوط المدمجة لازمة لرسم الأسماء العربية والرموز في صورة الترحيب
 Environment=FONTCONFIG_PATH=/opt/enclave/welcome-bot/assets/fonts
 # PORT فارغ عمدًا: خادم الفحص الاختياري داخل البوت يلتقط أي منفذ يجده،
-# فيزاحم المنصة على منفذها
+# فيزاحم المنصة على منفذها لو عملا على خادم واحد
 Environment=PORT=
+Environment=XDG_CACHE_HOME=/var/cache/enclave-bot
 ExecStart=/usr/bin/node bot.js
 Restart=always
 RestartSec=5
-# تقييد الخدمة: خلل فيها لا يتجاوز ملفاتها
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
@@ -26,10 +26,10 @@ ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
 ReadWritePaths=/data
-# كاش الخطوط: fonts.conf يضعه داخل مجلد الخطوط، و/opt للقراءة فقط
+# fonts.conf يضع كاش الخطوط داخل مجلد الخطوط، و/opt للقراءة فقط —
+# بدون هذا يفشل بناء الكاش فتتدهور الأسماء العربية في الصورة
 ReadWritePaths=/opt/enclave/welcome-bot/assets/fonts
-CacheDirectory=enclave
-Environment=XDG_CACHE_HOME=/var/cache/enclave
+CacheDirectory=enclave-bot
 
 [Install]
 WantedBy=multi-user.target

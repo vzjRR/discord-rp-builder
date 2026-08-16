@@ -1,19 +1,20 @@
 [Unit]
-Description=بوت السجلات — Enclave RP
+Description=بوت سيرفر LSPD
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=enclave
-WorkingDirectory=/opt/enclave/logs-bot
-EnvironmentFile=/etc/enclave/enclave.env
+WorkingDirectory=/opt/enclave/lspd-welcome-bot
+# ملف مستقل: بوت وسيرفر غير اللذين لـ Enclave، رغم تطابق أسماء المتغيرات
+EnvironmentFile=/etc/enclave/lspd-bot.env
 Environment=NODE_ENV=production
 Environment=PORT=
+Environment=XDG_CACHE_HOME=/var/cache/lspd-bot
 ExecStart=/usr/bin/node bot.js
 Restart=always
 RestartSec=5
-# تقييد الخدمة: خلل فيها لا يتجاوز ملفاتها
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
@@ -21,7 +22,7 @@ ProtectHome=true
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
-ReadWritePaths=/data
+CacheDirectory=lspd-bot
 
 [Install]
 WantedBy=multi-user.target
