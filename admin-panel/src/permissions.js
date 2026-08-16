@@ -57,9 +57,19 @@ function parse(stored) {
  * مسارًا واحدًا يُكتب غدًا بلا requireAuth كان سيفتح المنصة للعالم.
  */
 function effective(admin) {
-  if (!admin || typeof admin !== 'object' || admin.id === undefined) return [];
+  if (!admin || typeof admin !== 'object') return [];
+
+  // التمييز بين حالتين تتشابهان في الظاهر ويفترقان في المعنى:
+  //
+  //   permissions === null       صفّ قديم سابق للميزة — كامل الصلاحيات
+  //   permissions === undefined  ليس وصفَ حسابٍ أصلًا — لا صلاحية
+  //
+  // لذلك يجب على كل مُستدعٍ أن يمرّر permissions صراحةً (ولو null).
+  // الخلط بينهما هو ما يجعل جلسةً معدومة تُقرأ "حسابًا قديمًا" فتُمنح
+  // كل شيء — وهي الثغرة التي كان هذا الشرط موضوعًا لسدّها.
+  if (admin.permissions === undefined) return [];
   if (admin.isOwner) return [...KEYS];
-  if (admin.permissions === null || admin.permissions === undefined) return [...KEYS];
+  if (admin.permissions === null) return [...KEYS];
   return admin.permissions;
 }
 

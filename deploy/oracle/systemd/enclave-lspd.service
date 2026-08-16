@@ -1,0 +1,32 @@
+[Unit]
+Description=بوت ترحيب LSPD
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=enclave
+WorkingDirectory=/opt/enclave/lspd-welcome-bot
+# ملف خاص: بوت LSPD يقرأ DISCORD_TOKEN وGUILD_ID نفسيهما لكن
+# بقيمتين مختلفتين (بوت آخر وسيرفر آخر)، فمشاركة الملف تصله
+# بقيم السيرفر الرئيسي فيرحّب في المكان الخطأ.
+EnvironmentFile=/etc/enclave/lspd.env
+Environment=NODE_ENV=production
+Environment=PORT=
+ExecStart=/usr/bin/node bot.js
+Restart=always
+RestartSec=5
+# تقييد الخدمة: خلل فيها لا يتجاوز ملفاتها
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/data
+CacheDirectory=enclave-lspd
+Environment=XDG_CACHE_HOME=/var/cache/enclave-lspd
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,35 @@
+[Unit]
+Description=بوت الترحيب — Enclave RP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=enclave
+WorkingDirectory=/opt/enclave/welcome-bot
+EnvironmentFile=/etc/enclave/enclave.env
+Environment=NODE_ENV=production
+# الخطوط المدمجة لازمة لرسم الأسماء العربية والرموز في صورة الترحيب
+Environment=FONTCONFIG_PATH=/opt/enclave/welcome-bot/assets/fonts
+# PORT فارغ عمدًا: خادم الفحص الاختياري داخل البوت يلتقط أي منفذ يجده،
+# فيزاحم المنصة على منفذها
+Environment=PORT=
+ExecStart=/usr/bin/node bot.js
+Restart=always
+RestartSec=5
+# تقييد الخدمة: خلل فيها لا يتجاوز ملفاتها
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/data
+# كاش الخطوط: fonts.conf يضعه داخل مجلد الخطوط، و/opt للقراءة فقط
+ReadWritePaths=/opt/enclave/welcome-bot/assets/fonts
+CacheDirectory=enclave
+Environment=XDG_CACHE_HOME=/var/cache/enclave
+
+[Install]
+WantedBy=multi-user.target

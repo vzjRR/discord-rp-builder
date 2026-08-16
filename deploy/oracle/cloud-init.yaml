@@ -1,0 +1,54 @@
+#cloud-config
+# يُلصق هذا الملف كاملًا في خانة "user data" عند إنشاء خادم Oracle Cloud
+# (Advanced options ← Management ← Paste cloud-init script).
+#
+# الخادم يهيّئ نفسه عند أول إقلاع: يجلب الكود، ويثبّت Node والاعتماديات
+# وcloudflared، ويركّب الخدمات. لا يحتاج منك اتصالًا بالخادم إطلاقًا.
+#
+# ⚠️ لا تضع أي سرّ هنا. ما يُمرَّر إلى cloud-init يبقى مقروءًا في بيانات
+# المثيل (metadata) لأي عملية تعمل على الخادم. الأسرار تُوضع بعد التهيئة
+# في /etc/enclave/enclave.env، وهو ملف بصلاحية القراءة للجذر وحده.
+
+package_update: true
+
+write_files:
+  - path: /usr/local/bin/enclave-bootstrap.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > >(tee -a /var/log/enclave-bootstrap.log) 2>&1
+      echo "=== بدء التهيئة: $(date -Is) ==="
+
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -y
+      apt-get install -y --no-install-recommends git curl ca-certificates
+
+      # جلب المستودع ثم تسليم العمل لسكربت التهيئة الموجود فيه، فيبقى
+      # منطق التهيئة في مكان واحد يُراجع ويُحدَّث مع الكود لا في نسخة
+      # مجمّدة داخل بيانات المثيل.
+      rm -rf /opt/enclave
+      git clone --depth 1 https://github.com/vzjRR/discord-rp-builder.git /opt/enclave
+      bash /opt/enclave/deploy/oracle/setup.sh
+
+      # cloudflared: يفتح اتصالًا صادرًا إلى Cloudflare، فلا يحتاج الخادم
+      # منفذًا واردًا ولا عنوانًا عامًا ولا شهادة — ولا يُكتشف أصلًا.
+      ARCH="$(dpkg --print-architecture)"
+      curl -fsSL -o /tmp/cloudflared.deb \
+        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}.deb"
+      dpkg -i /tmp/cloudflared.deb || apt-get install -f -y
+      rm -f /tmp/cloudflared.deb
+      cloudflared --version
+
+      # تحديثات الأمان تُثبَّت تلقائيًا: خادم يُنسى بلا ترقيع يصير أضعف
+      # حلقة مهما أحكمنا التطبيق نفسه.
+      apt-get install -y unattended-upgrades
+      dpkg-reconfigure -f noninteractive unattended-upgrades
+
+      echo "=== اكتملت التهيئة: $(date -Is) ==="
+      echo "الخطوات المتبقية مشروحة في: /opt/enclave/deploy/oracle/README.md"
+
+runcmd:
+  - [ bash, /usr/local/bin/enclave-bootstrap.sh ]
+
+final_message: "جاهز بعد $UPTIME ثانية — راجع /var/log/enclave-bootstrap.log"
