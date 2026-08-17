@@ -124,7 +124,11 @@ SESSION_SECRET=
 
 PUBLIC_BASE_URL=https://enclave-admin.tsh87.com
 CLOUDFLARE_SECRET=
-REQUIRE_CLOUDFLARE=true
+# This deployment reaches the internet only via an outbound Cloudflare
+# tunnel (no public origin, no Worker injecting a header) -- so this must
+# stay false. Only set it true if you put a Cloudflare Worker in front of
+# the tunnel's hostname and have it inject CLOUDFLARE_SECRET.
+REQUIRE_CLOUDFLARE=false
 OWNER_NOTIFY_USER_ID=
 
 # This is the port picked at install time -- it's what the systemd unit

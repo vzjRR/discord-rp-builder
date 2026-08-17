@@ -202,6 +202,6 @@ cloud network»، وتأكد من تفعيل **Assign a public IPv4 address**.
 | التهيئة لم تكتمل | `cat /var/log/bootstrap-<الخدمة>.log` |
 | خدمة لا تعمل | `journalctl -u <الخدمة> -n 50 --no-pager` |
 | الدومين لا يفتح | `systemctl status cloudflared` ثم راجع Public hostname |
-| المنصة ترد ٤٠٤ على كل شيء | `CLOUDFLARE_SECRET` لا يطابق قاعدة Cloudflare — أو عطّل `REQUIRE_CLOUDFLARE` مؤقتًا |
+| المنصة ترد ٤٠٤ على كل شيء | تأكد أن `REQUIRE_CLOUDFLARE=false` (لا Worker أمام النفق في هذه البنية) — أو إن فعّلته فتحقق أن `CLOUDFLARE_SECRET` يطابق قاعدة الـ Worker |
 | صورة الترحيب بمربعات فارغة | `FONTCONFIG_PATH` لا يشير إلى مجلد الخطوط |
 | البوت يرحّب في السيرفر الخطأ | خلط بين ملفَّي الأسرار — لكل بوت ملفه |

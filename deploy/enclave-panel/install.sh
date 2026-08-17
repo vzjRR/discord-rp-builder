@@ -11,7 +11,9 @@ SESSION_SECRET=
 
 PUBLIC_BASE_URL=https://enclave-admin.tsh87.com
 CLOUDFLARE_SECRET=
-REQUIRE_CLOUDFLARE=true
+# نفق Cloudflare صادر فقط ولا Worker يُدخل ترويسة هنا -- فهذا يبقى false.
+# فعّله فقط إن وضعت Worker أمام رابط النفق يُدخل CLOUDFLARE_SECRET.
+REQUIRE_CLOUDFLARE=false
 OWNER_NOTIFY_USER_ID=
 
 SQLITE_PATH=/data/admin.db
