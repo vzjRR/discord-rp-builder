@@ -97,3 +97,11 @@ cd /opt/enclave-admin && git pull
 systemctl restart enclave-admin-panel
 journalctl -u enclave-admin-panel -f
 ```
+
+## أردت البوتين على هذا الخادم نفسه أيضًا؟
+
+استعمل [`bots-combined/EXISTING-SERVER.md`](../bots-combined/EXISTING-SERVER.md)
+— يضيف بوت Enclave وبوت LSPD على نفس هذا الصندوق دون خادم Oracle ثانٍ،
+وبوت Enclave تحديدًا يشارك مستخدم المنصة ومجلد بياناتها مباشرةً (نفس
+`DISCORD_TOKEN`، كما كان الحال على Railway)، فتعمل صفحة «حالة السيرفر»
+كاملةً بلا أي نقص.
