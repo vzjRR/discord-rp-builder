@@ -20,9 +20,11 @@ const { db } = require('./db');
 const auth = require('./auth');
 const { logAction } = require('./audit');
 const { sendBrandedDM } = require('./messageFormat');
+const discord = require('./discord');
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_ACTIVE_PER_HOUR = 3;
+const MIN_INTERVAL_MS = 5 * 60 * 1000; // مهلة بين طلبين متتاليين لنفس الحساب
 const MAX_VERIFY_ATTEMPTS = 5; // تخمينات مسموحة للرمز الواحد قبل حرقه
 
 function hashCode(code) {
@@ -48,6 +50,17 @@ function recentRequestCount(adminId) {
   return count;
 }
 
+// هل حصل طلب لهذا الحساب خلال المهلة الدنيا؟ يمنع إغراق شخص ما بثلاث
+// رسائل خاصة متتالية دفعة واحدة، حتى لو كان ذلك ضمن حدّ الثلاثة بالساعة.
+function requestedWithinCooldown(adminId) {
+  const { count } = db
+    .prepare(
+      "SELECT COUNT(*) AS count FROM pin_resets WHERE admin_id = ? AND created_at > datetime('now', ?)"
+    )
+    .get(adminId, `-${MIN_INTERVAL_MS / 1000} seconds`);
+  return count > 0;
+}
+
 /**
  * ينشئ رمز استرجاع ويرسله في الخاص لصاحب الحساب.
  * يرجع دائمًا { ok: true } بغضّ النظر عن وجود الحساب — عدا تجاوز الحدّ.
@@ -60,6 +73,15 @@ async function requestCode(discordUserId) {
   // لمعرّف مسجّل، فتصير هي نفسها إجابةً على سؤال "هل لهذا الحساب صلاحية؟"
   if (recentRequestCount(admin.id) >= MAX_ACTIVE_PER_HOUR) {
     console.warn(`pin reset: تجاوز الحدّ للحساب ${admin.id}`);
+    return { ok: true };
+  }
+
+  // مهلة بين الطلبات المتتالية: أي شخص يعرف معرّف حساب أحدهم يقدر يطلب له
+  // رمزًا مسجَّل الحدّ الأقصى ثلاث مرات بالساعة دفعة واحدة — يزعجه برسائل
+  // خاصة متتابعة لم يطلبها. هذا لا يفتح حسابه (الرمز يصله هو وحده، والرقم
+  // السري الحالي لا يتغيّر إلا بإدخال الرمز الصحيح) لكنه إزعاج حقيقي.
+  if (requestedWithinCooldown(admin.id)) {
+    console.warn(`pin reset: طلب متكرر بسرعة للحساب ${admin.id}`);
     return { ok: true };
   }
 
@@ -97,6 +119,19 @@ async function requestCode(discordUserId) {
       'طُلب رمز استرجاع لكن تعذّر إيصاله في الخاص'
     );
   }
+
+  // لا يملك هذا المسار أي طريقة للتأكد أن طالب الرمز هو صاحب الحساب فعلًا
+  // (من طبيعة "نسيت رقمي" أن تكون قبل الدخول) — فمن يعرف معرّف أحدهم يقدر
+  // يطلب له رمزًا هو لم يطلبه، وإن لم يفتح له حسابه (الرمز يصل لصاحبه هو
+  // وحده) يبقى إزعاجًا متكررًا ممكنًا. نبلّغ المالك بكل طلب ليرى النمط
+  // ويتصرف لو تكرر بشكل مريب — كما نفعل تمامًا مع طلبات الوصول الجديدة.
+  const notifyId = process.env.OWNER_NOTIFY_USER_ID;
+  if (notifyId && notifyId !== admin.discord_user_id) {
+    discord
+      .sendDM(notifyId, `🔑 طُلب رمز استرجاع الرقم السري لحساب **${admin.name}**. إن تكرر هذا بشكل مريب فقد يكون أحدهم يزعجه بمعرّفه فقط.`)
+      .catch((err) => console.error('pin reset owner notify failed:', err.message));
+  }
+
   return { ok: true };
 }
 
