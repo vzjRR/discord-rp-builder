@@ -11,6 +11,10 @@ WorkingDirectory=/opt/enclave/lspd-welcome-bot
 EnvironmentFile=/etc/enclave/lspd-bot.env
 Environment=NODE_ENV=production
 Environment=PORT=
+# الخطوط المدمجة لازمة لرسم الأسماء العربية والرموز في صورة الترحيب —
+# بدونها يسقط الرسم على خط النظام الافتراضي (أو يطلع الاسم فارغًا لو
+# احتوى رموزًا لا يغطيها ذلك الخط، مثل 𝑃𝐿𝑎𝑛𝑘 أو حروفًا عربية)
+Environment=FONTCONFIG_PATH=/opt/enclave/lspd-welcome-bot/assets/fonts
 Environment=XDG_CACHE_HOME=/var/cache/lspd-bot
 ExecStart=/usr/bin/node bot.js
 Restart=always
@@ -22,6 +26,9 @@ ProtectHome=true
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
+# fonts.conf يضع كاش الخطوط داخل مجلد الخطوط نفسه، و/opt للقراءة فقط —
+# بدون هذا يفشل بناء الكاش فتتدهور الأسماء العربية والرموز في الصورة
+ReadWritePaths=/opt/enclave/lspd-welcome-bot/assets/fonts
 CacheDirectory=lspd-bot
 
 [Install]
