@@ -1,0 +1,43 @@
+#cloud-config
+# Paste this whole file into the Oracle Cloud console when creating the
+# instance:  Advanced options -> Management -> Paste cloud-init script
+#
+# Installs both Discord bots on this machine: the Enclave server bot and
+# the LSPD server bot. The admin panel is a separate deployment -- see
+# deploy/enclave-panel/ -- meant to run on its own instance.
+# The server configures itself on first boot. No SSH needed to install it.
+#
+# ASCII only, on purpose. The console base64-encodes this field and its
+# validator rejects non-ASCII payloads with "Incorrectly formatted request".
+# The Arabic documentation lives in the README files instead.
+#
+# WARNING: put no secrets here. Anything passed to cloud-init stays readable
+# in the instance metadata to every process on the machine. Secrets go in
+# /etc/enclave/ after setup, readable only by root.
+
+package_update: true
+
+write_files:
+  - path: /usr/local/bin/bootstrap-bots-combined.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > >(tee -a /var/log/bootstrap-bots-combined.log) 2>&1
+      echo "=== setup started: $(date -Is) ==="
+
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -y
+      apt-get install -y --no-install-recommends git curl ca-certificates
+
+      rm -rf /opt/enclave
+      git clone --depth 1 https://github.com/vzjRR/discord-rp-builder.git /opt/enclave
+      bash /opt/enclave/deploy/bots-combined/setup.sh
+
+      echo "=== setup finished: $(date -Is) ==="
+      echo "Remaining steps: /opt/enclave/deploy/bots-combined/README.md"
+
+runcmd:
+  - [ bash, /usr/local/bin/bootstrap-bots-combined.sh ]
+
+final_message: "Ready after $UPTIME seconds - see /var/log/bootstrap-bots-combined.log"
