@@ -102,6 +102,12 @@ if ! id -u "$ENCLAVE_USER" >/dev/null 2>&1; then
   useradd --system --create-home --shell /usr/sbin/nologin "$ENCLAVE_USER"
 fi
 
+# Newer git refuses to operate (as root) on a repo owned by another user --
+# and after the panel's own installer has run, /opt/enclave-admin is owned
+# by enclave-admin, not root. Without this, `git -C` below fails with
+# "detected dubious ownership" on a box where the panel was installed first.
+git config --global --add safe.directory "$ENCLAVE_DIR"
+
 if [[ -d "$ENCLAVE_DIR/.git" ]]; then
   git -C "$ENCLAVE_DIR" fetch origin master --quiet
   git -C "$ENCLAVE_DIR" reset --hard origin/master --quiet
@@ -202,6 +208,10 @@ log "LSPD bot: user, checkout"
 if ! id -u "$LSPD_USER" >/dev/null 2>&1; then
   useradd --system --create-home --shell /usr/sbin/nologin "$LSPD_USER"
 fi
+
+# Same "dubious ownership" issue as the Enclave bot above -- matters here
+# on any re-run, once this checkout is owned by lspd-bot instead of root.
+git config --global --add safe.directory "$LSPD_DIR"
 
 if [[ -d "$LSPD_DIR/.git" ]]; then
   git -C "$LSPD_DIR" fetch origin master --quiet

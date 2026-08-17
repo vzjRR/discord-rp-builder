@@ -47,6 +47,11 @@ create_user() {
 }
 
 fetch_code() {
+  # إصدارات git الحديثة ترفض العمل (بصلاحية الجذر) على مستودع يملكه مستخدم
+  # آخر -- وبعد أول تنفيذ يصبح $APP_DIR مملوكًا لـ $RUN_USER لا الجذر. بدون
+  # هذا يفشل أي `git pull` لاحق برسالة "detected dubious ownership".
+  git config --global --add safe.directory "$APP_DIR"
+
   log "جلب الكود"
   if [[ -d "$APP_DIR/.git" ]]; then
     git -C "$APP_DIR" fetch origin master --quiet

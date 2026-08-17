@@ -86,6 +86,12 @@ if ! id -u "$RUN_USER" >/dev/null 2>&1; then
 fi
 
 # ── 4) Code ──────────────────────────────────────────────────────────
+# Newer git refuses to operate (as root) on a repo owned by another user --
+# and after this script's first run, $APP_DIR is owned by $RUN_USER, not
+# root. Without this, a second run (or the "git pull" from this file's
+# README) fails with "detected dubious ownership".
+git config --global --add safe.directory "$APP_DIR"
+
 log "Fetching code into $APP_DIR"
 if [[ -d "$APP_DIR/.git" ]]; then
   git -C "$APP_DIR" fetch origin master --quiet
