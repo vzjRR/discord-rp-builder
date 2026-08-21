@@ -18,7 +18,7 @@
 | المستخدم | `enclave` | `enclave-admin` | `enclave-admin` (**نفسه**) | `lspd-bot` |
 | المجلد | `/opt/enclave/app` | `/opt/enclave-admin` | `/opt/enclave-admin/welcome-bot` | `/opt/lspd-bot` |
 | ملف الأسرار | `/etc/enclave.env` | `/etc/enclave-admin.env` | `/etc/enclave-admin-bot.env` | `/etc/lspd-bot.env` |
-| خدمة systemd | `enclave.service` | `enclave-admin-panel.service` | `enclave-admin-bot.service` | `lspd-bot.service` |
+| خدمة systemd | `enclave.service` | `enclave-admin-panel.service` | `enclave-admin-bot.service` | `lspd-bot.service` + `lspd-logs-bot.service` |
 
 **السكربت لا يلمس الجدار الناري إطلاقًا** — لا `ufw`، ولا `iptables`. ولا
 بوت من الاثنين يفتح منفذًا واردًا أصلًا: خادم الفحص الاختياري داخل كل بوت
@@ -75,13 +75,14 @@ nano /etc/lspd-bot.env
 > يطابقا ما في `/etc/enclave-admin.env`** (ملف المنصة) — بوت ديسكورد واحد
 > لسيرفر Enclave يخدم الاثنين معًا. أما `/etc/lspd-bot.env` فتوكن وسيرفر
 > مختلفان تمامًا؛ خلطهما يجعل أحد البوتين يرحّب في السيرفر الخطأ بهوية
-> البوت الخطأ.
+> البوت الخطأ. `lspd-logs-bot` يقرأ نفس `/etc/lspd-bot.env` عمدًا — عملية
+> منفصلة، لكن نفس هوية بوت LSPD نفسها، لا شيء إضافي يُملأ له.
 
-**٢) شغّلهما:**
+**٢) شغّلها كلها:**
 
 ```bash
-systemctl enable --now enclave-admin-bot lspd-bot
-systemctl status enclave-admin-bot lspd-bot --no-pager
+systemctl enable --now enclave-admin-bot lspd-bot lspd-logs-bot
+systemctl status enclave-admin-bot lspd-bot lspd-logs-bot --no-pager
 journalctl -u enclave-admin-bot -f
 ```
 
@@ -107,7 +108,7 @@ curl -s localhost:3000/api/health                 # المتجر ما زال ي�
 
 ```bash
 cd /opt/enclave-admin && git pull && systemctl restart enclave-admin-bot
-cd /opt/lspd-bot && git pull && systemctl restart lspd-bot
+cd /opt/lspd-bot && git pull && systemctl restart lspd-bot lspd-logs-bot
 journalctl -u enclave-admin-bot -f
 ```
 

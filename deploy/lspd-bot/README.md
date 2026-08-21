@@ -1,12 +1,13 @@
 # بوت سيرفر LSPD
 
-بوت واحد لكل ما يخصّ سيرفر LSPD.
+بوت واحد لكل ما يخصّ سيرفر LSPD — ترحيب ولوقات معًا، بهوية ديسكورد واحدة
+("EN | LSPD BOT#3043")، كل واحد يعمل كعملية Node مستقلة.
 
 | | |
 |---|---|
-| المجلد | `lspd-welcome-bot/` |
-| الخدمة | `lspd-bot` |
-| الأسرار | `/etc/enclave/lspd-bot.env` |
+| المجلد | `lspd-welcome-bot/` (ترحيب) + `logs-bot/` (لوقات) |
+| الخدمة | `lspd-bot` + `lspd-logs-bot` |
+| الأسرار | `/etc/enclave/lspd-bot.env` (يشتركان فيه عمدًا — نفس التوكن) |
 | البيانات | لا شيء |
 
 ## النشر
@@ -16,7 +17,7 @@
 ```bash
 sudo -i
 nano /etc/enclave/lspd-bot.env
-systemctl enable --now lspd-bot
+systemctl enable --now lspd-bot lspd-logs-bot
 journalctl -u lspd-bot -f
 ```
 

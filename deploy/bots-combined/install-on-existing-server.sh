@@ -244,6 +244,10 @@ fi
 
 log "Installing LSPD bot dependencies"
 runuser -u "$LSPD_USER" -- bash -c "cd '$LSPD_DIR/lspd-welcome-bot' && npm install --omit=dev --no-audit --no-fund"
+# Logs run as a second process off the SAME checkout, reusing $LSPD_ENV (same
+# DISCORD_TOKEN + GUILD_ID as the welcome bot) so it posts as the one LSPD
+# bot identity instead of a second Discord application.
+runuser -u "$LSPD_USER" -- bash -c "cd '$LSPD_DIR/logs-bot' && npm install --omit=dev --no-audit --no-fund"
 
 log "Installing lspd-bot.service"
 cat > /etc/systemd/system/lspd-bot.service <<EOF
@@ -305,7 +309,55 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 
-log "Done. No firewall rule was touched -- neither bot needs one (no inbound port)."
+log "Installing lspd-logs-bot.service"
+cat > /etc/systemd/system/lspd-logs-bot.service <<EOF
+[Unit]
+Description=LSPD server logs (same bot identity as lspd-bot, separate process)
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=${LSPD_USER}
+Group=${LSPD_USER}
+WorkingDirectory=${LSPD_DIR}/logs-bot
+EnvironmentFile=${LSPD_ENV}
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node bot.js
+Restart=always
+RestartSec=5
+
+MemoryHigh=128M
+MemoryMax=192M
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lspd-logs-bot
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+
+log "Done. No firewall rule was touched -- none of the bots need one (no inbound port)."
 cat <<DONE
 
 Remaining steps:
@@ -318,11 +370,13 @@ Remaining steps:
      ⚠️  Enclave bot's DISCORD_TOKEN and GUILD_ID must match the admin
      panel's /etc/enclave-admin.env (same bot application). LSPD's must
      NOT match either -- it's a different bot on a different server.
+     lspd-logs-bot reuses the same ${LSPD_ENV} on purpose (same bot
+     identity as lspd-bot, just a second process) -- nothing extra to fill.
 
-  2. Start both:
+  2. Start all three:
 
-       systemctl enable --now enclave-admin-bot lspd-bot
-       systemctl status enclave-admin-bot lspd-bot --no-pager
+       systemctl enable --now enclave-admin-bot lspd-bot lspd-logs-bot
+       systemctl status enclave-admin-bot lspd-bot lspd-logs-bot --no-pager
        journalctl -u enclave-admin-bot -f
 
 The store's and panel's services, users, ports, and firewall rules were

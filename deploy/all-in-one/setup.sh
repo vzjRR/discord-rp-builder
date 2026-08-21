@@ -46,11 +46,11 @@ cat <<'DONE'
 
   ٤. شغّل الخدمات:
 
-       systemctl enable --now enclave-panel enclave-bot lspd-bot
+       systemctl enable --now enclave-panel enclave-bot lspd-bot lspd-logs-bot
 
   ٥. تابع:
 
-       systemctl status enclave-panel enclave-bot lspd-bot --no-pager
+       systemctl status enclave-panel enclave-bot lspd-bot lspd-logs-bot --no-pager
        journalctl -u enclave-panel -f
 
 DONE

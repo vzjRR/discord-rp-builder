@@ -16,5 +16,5 @@ install_lspd_bot "$DIR"
 log "جاهز"
 cat <<'DONE'
   ١. املأ الأسرار: nano /etc/enclave/lspd-bot.env
-  ٢. التشغيل:      systemctl enable --now lspd-bot
+  ٢. التشغيل:      systemctl enable --now lspd-bot lspd-logs-bot
 DONE

@@ -44,8 +44,10 @@
 وحدها — يستدعيه `setup.sh` للنشر المنفرد، ويستدعيه `bots-combined`
 و`all-in-one` للمجمّع، فلا يتكرر التعريف في أكثر من موضع.
 
-> `logs-bot/` في المستودع لا نشرة له: لم يكن يعمل على الاستضافة السابقة.
-> لكلّ سيرفر بوت واحد. إن أردته لاحقًا فنشرته تُبنى على المنوال نفسه.
+> `logs-bot/` ينشر تلقائيًا مع `lspd-bot/` (خدمة `lspd-logs-bot` — نفس
+> `DISCORD_TOKEN`/`GUILD_ID` في `lspd-bot.env`، عملية Node منفصلة فقط)
+> فيبقى «بوت واحد لكل سيرفر» صحيحًا: هوية ديسكورد واحدة، لا تطبيقين.
+> جانب Enclave لا يزال يُضبط يدويًا (راجع `logs-bot/.env.example`).
 
 ---
 
@@ -82,7 +84,7 @@ ssh ubuntu@<عنوان-الخادم>
 sudo -i
 nano /etc/enclave/enclave-bot.env
 nano /etc/enclave/lspd-bot.env
-systemctl enable --now enclave-bot lspd-bot
+systemctl enable --now enclave-bot lspd-bot lspd-logs-bot
 journalctl -u enclave-bot -f
 ```
 

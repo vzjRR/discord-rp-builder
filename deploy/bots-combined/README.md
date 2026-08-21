@@ -15,8 +15,8 @@
 
 | | |
 |---|---|
-| الخدمات | `enclave-bot` و`lspd-bot` |
-| الأسرار | `/etc/enclave/enclave-bot.env` و`/etc/enclave/lspd-bot.env` |
+| الخدمات | `enclave-bot` و`lspd-bot` + `lspd-logs-bot` |
+| الأسرار | `/etc/enclave/enclave-bot.env` و`/etc/enclave/lspd-bot.env` (يشترك فيه `lspd-logs-bot` عمدًا) |
 | البيانات | `/data/server-events.db` (لبوت Enclave وحده) |
 
 ## النشر
@@ -53,11 +53,11 @@ nano /etc/enclave/lspd-bot.env
 > ملف LSPD (أو العكس) يجعل البوت يرحّب في السيرفر الخطأ بهوية البوت
 > الخطأ.
 
-**شغّلهما:**
+**شغّلها كلها:**
 
 ```bash
-systemctl enable --now enclave-bot lspd-bot
-systemctl status enclave-bot lspd-bot --no-pager
+systemctl enable --now enclave-bot lspd-bot lspd-logs-bot
+systemctl status enclave-bot lspd-bot lspd-logs-bot --no-pager
 journalctl -u enclave-bot -f
 ```
 
@@ -84,7 +84,7 @@ journalctl -u enclave-bot -f
 
 ```bash
 cd /opt/enclave && git pull
-systemctl restart enclave-bot lspd-bot   # الاثنان
-systemctl restart lspd-bot               # واحد فقط
+systemctl restart enclave-bot lspd-bot lspd-logs-bot   # الكل
+systemctl restart lspd-bot                             # واحد فقط
 journalctl -u enclave-bot -f
 ```

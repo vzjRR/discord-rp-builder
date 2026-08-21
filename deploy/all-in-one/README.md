@@ -95,8 +95,8 @@ chown -R enclave:enclave /data
 
 ```bash
 cloudflared service install <رمز-النفق>
-systemctl enable --now enclave-panel enclave-bot lspd-bot
-systemctl status enclave-panel enclave-bot lspd-bot --no-pager
+systemctl enable --now enclave-panel enclave-bot lspd-bot lspd-logs-bot
+systemctl status enclave-panel enclave-bot lspd-bot lspd-logs-bot --no-pager
 ```
 
 ## ٤) تحقّق قبل حذف القديم
@@ -105,6 +105,7 @@ systemctl status enclave-panel enclave-bot lspd-bot --no-pager
 journalctl -u enclave-panel -n 30 --no-pager
 journalctl -u enclave-bot -n 30 --no-pager
 journalctl -u lspd-bot -n 30 --no-pager
+journalctl -u lspd-logs-bot -n 30 --no-pager
 ```
 
 ثم من المتصفح:
@@ -124,7 +125,7 @@ journalctl -u lspd-bot -n 30 --no-pager
 ```bash
 # تحديث الكود لكل الخدمات
 cd /opt/enclave && git pull
-systemctl restart enclave-panel enclave-bot lspd-bot
+systemctl restart enclave-panel enclave-bot lspd-bot lspd-logs-bot
 
 # خدمة واحدة فقط
 systemctl restart lspd-bot

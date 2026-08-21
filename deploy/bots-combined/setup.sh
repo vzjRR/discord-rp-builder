@@ -28,13 +28,13 @@ Remaining steps, in order:
        nano /etc/enclave/enclave-bot.env   # Enclave bot
        nano /etc/enclave/lspd-bot.env      # LSPD bot (different token and guild!)
 
-  2. Start both:
+  2. Start all three:
 
-       systemctl enable --now enclave-bot lspd-bot
+       systemctl enable --now enclave-bot lspd-bot lspd-logs-bot
 
   3. Watch:
 
-       systemctl status enclave-bot lspd-bot --no-pager
+       systemctl status enclave-bot lspd-bot lspd-logs-bot --no-pager
        journalctl -u enclave-bot -f
 
 Note: the admin panel is a separate deployment (deploy/enclave-panel/).
