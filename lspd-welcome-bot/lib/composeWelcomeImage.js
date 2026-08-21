@@ -131,6 +131,26 @@ async function renderNamePillLayer(displayName) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
+// يرسم النص وحده (بدون الصندوق) مقصوصًا على حدود الحبر — يُستخدم من الاختبار المحلي
+// (test-names.js) عشان يتأكد إن اسم معيّن ينرسم برمز حقيقي مو مربع tofu، بدون ما
+// يحتاج يحمّل أفاتار من الشبكة.
+async function renderNameTextOnly(text, fontSize = NAME_FONT_SIZE) {
+  const svg = `<svg width="3000" height="200" xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="150" font-family="${FONT_STACK}" font-size="${fontSize}" font-weight="bold"
+          fill="#ffffff">${escapeXml(text)}</text>
+  </svg>`;
+  try {
+    const { data, info } = await sharp(Buffer.from(svg))
+      .trim({ threshold: 6 })
+      .png()
+      .toBuffer({ resolveWithObject: true });
+    if (!info.width || !info.height) return null;
+    return { buffer: data, width: info.width, height: info.height };
+  } catch {
+    return null;
+  }
+}
+
 function circleMaskSvg(cx, cy, r) {
   return Buffer.from(
     `<svg width="${CANVAS.width}" height="${CANVAS.height}" xmlns="http://www.w3.org/2000/svg">` +
@@ -172,4 +192,13 @@ async function composeWelcomeImage(avatarUrl, displayName) {
   return sharp(avatarLayer).composite(composites).png().toBuffer();
 }
 
-module.exports = { composeWelcomeImage, CANVAS, AVATAR_CENTER, AVATAR_RADIUS, FONT_STACK, normalizeForRender };
+module.exports = {
+  composeWelcomeImage,
+  CANVAS,
+  AVATAR_CENTER,
+  AVATAR_RADIUS,
+  FONT_STACK,
+  normalizeForRender,
+  renderNameTextOnly,
+  NAME_FONT_SIZE,
+};

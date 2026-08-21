@@ -80,14 +80,19 @@ if [[ "$node_ok" != true ]]; then
   apt-get install -y nodejs
 fi
 
-# ── Shared build + font deps (the Enclave bot draws welcome images with
-#    Arabic text via fontconfig; installing these is additive, nothing
-#    existing depends on a specific absence of them) ────────────────────
+# ── Shared build + font deps (the welcome bots draw name text via
+#    fontconfig; installing these is additive, nothing existing depends
+#    on a specific absence of them). The full Noto suite (not just
+#    fonts-noto-core) is needed so uncommon scripts in Discord display
+#    names -- Cherokee, Georgian, Runic, color emoji, etc. -- render as
+#    real glyphs instead of tofu boxes; fontconfig picks them up
+#    automatically via each bot's fonts.conf, no code change required
+#    per script. ─────────────────────────────────────────────────────
 log "Installing build and font dependencies (only if missing)"
 apt-get update -y
 apt-get install -y --no-install-recommends \
   ca-certificates curl git build-essential python3 pkg-config \
-  fontconfig fonts-noto-core
+  fontconfig fonts-noto fonts-noto-cjk fonts-noto-extra fonts-noto-color-emoji
 
 ##############################################################################
 # Enclave bot -- shares the admin panel's user, checkout, and data/ folder

@@ -7,6 +7,8 @@
   "private": true,
   "scripts": {
     "start": "cross-env FONTCONFIG_PATH=./assets/fonts node bot.js",
+    "test:names": "cross-env FONTCONFIG_PATH=./assets/fonts node test-names.js",
+    "test": "npm run test:names",
     "send-test": "cross-env FONTCONFIG_PATH=./assets/fonts node send-test-welcome.js"
   },
   "dependencies": {

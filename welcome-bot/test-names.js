@@ -63,6 +63,7 @@ const NAMES = [
   '😀🎮✈️⭐',
   'إبراهيم عبد الرحمن الشمري الطويل جدا',  // اسم طويل يتقلّص
   '! ZÉCÒ ✩',           // اسم حقيقي كشف مشكلة الرمز ✩ (كان يطلع tofu)
+  'ᏕᎥᏦᎯ',                // اسم حقيقي بحروف الشيروكي (كان يطلع tofu)
 ];
 
 (async () => {
@@ -146,6 +147,24 @@ const NAMES = [
     ['✦', '✦ (sparkle)'],
   ]) {
     const r = await renderTextLayer(sym, NAME_STYLE);
+    const size = r ? `${r.width}x${r.height}` : 'none';
+    check(`${label} تنرسم برمز حقيقي`, Boolean(r) && size !== tofuSize,
+      `${size} (مربع tofu = ${tofuSize})`);
+  }
+
+  console.log('\n── 3.8 سكربتات نادرة عبر fontconfig fallback (مو tofu) ──');
+  // fonts.conf يسجل مجلدات الخطوط بالنظام (Noto الكاملة) عشان fontconfig
+  // نفسه يلقط أي سكربت ما هو مذكور بالاسم بـ FONT_STACK. هذا يتأكد إن
+  // السكربتات النادرة فعلًا تنرسم برموزها الحقيقية، مو مربعات الكودبوينت.
+  for (const [script, label] of [
+    ['ᏕᎥᏦᎯ', 'Cherokee (اسم حقيقي كشف المشكلة)'],
+    ['ꦱꦸꦫꦠ꧀', 'Javanese'],
+    ['ᚦᚩᚱ', 'Runic'],
+    ['ⴰⵎⴰⵣⵉⵖ', 'Tifinagh'],
+    ['ილია', 'Georgian'],
+    ['Ꮤꮝꮝ', 'Cherokee 2'],
+  ]) {
+    const r = await renderTextLayer(script, NAME_STYLE);
     const size = r ? `${r.width}x${r.height}` : 'none';
     check(`${label} تنرسم برمز حقيقي`, Boolean(r) && size !== tofuSize,
       `${size} (مربع tofu = ${tofuSize})`);

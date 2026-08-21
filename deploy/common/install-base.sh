@@ -21,10 +21,14 @@ install_packages() {
   # sharp، ‏@napi-rs/canvas) لها ثنائيات جاهزة لمعمارية ARM، لكن إن غابت
   # لإصدار ما فالبناء من المصدر يحتاج هذه الأدوات — وغيابها يُفشل التثبيت
   # برسالة غامضة بعد دقائق من الانتظار.
+  # الخطوط: مجموعة Noto الكاملة (مو fonts-noto-core فقط) — عشان أي اسم
+  # ديسكورد بأي سكربت (شيروكي، جورجي، رونيك، إيموجي ملوّن...) يرسم برمزه
+  # الحقيقي بدل مربع tofu. البوتات تسجّل مجلدات هذه الخطوط في fonts.conf
+  # الخاص بها فيلقطها fontconfig تلقائيًا بدون تعديل كود لكل سكربت جديد.
   apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg git \
     build-essential python3 pkg-config \
-    fontconfig fonts-noto-core \
+    fontconfig fonts-noto fonts-noto-cjk fonts-noto-extra fonts-noto-color-emoji \
     ufw unattended-upgrades
 }
 
