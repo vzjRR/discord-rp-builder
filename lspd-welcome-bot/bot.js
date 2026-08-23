@@ -34,10 +34,10 @@ client.once('ready', () => {
   console.log(`✅ بوت الترحيب متصل كـ ${client.user.tag}`);
   console.log('👂 بانتظار انضمام أعضاء جدد... (اترك هذا الترمنال مفتوح)');
 
-  // The "Playing/Watching/Listening ..." text shown under the bot's name in the member list.
-  // Change `name` and `type` (ActivityType.Playing / Watching / Listening / Competing) to customize.
+  // Custom status text shown under the bot's name in the member list -- ActivityType.Custom
+  // renders the name as-is with no "Playing/Watching/..." prefix Discord would otherwise add.
   client.user.setPresence({
-    activities: [{ name: 'for new officers', type: ActivityType.Watching }],
+    activities: [{ name: 'WE ARE WATCHING, WE ARE THE LSPD', type: ActivityType.Custom }],
     status: 'online',
   });
 });
