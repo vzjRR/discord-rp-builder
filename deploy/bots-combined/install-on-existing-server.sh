@@ -177,6 +177,13 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=${ENCLAVE_DATA}
 ReadWritePaths=${ENCLAVE_DIR}/welcome-bot/assets/fonts
+# fontconfig's relative <cachedir> resolves against the process's cwd
+# (WorkingDirectory, one level above assets/fonts) rather than against
+# fonts.conf's own directory -- without this the cache write fails
+# every startup (harmless: it falls back to no persistent cache, just
+# slower to re-parse), logged as "Fontconfig error: No writable cache
+# directories".
+ReadWritePaths=${ENCLAVE_DIR}/welcome-bot/.fc-cache
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

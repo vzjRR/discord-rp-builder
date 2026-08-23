@@ -29,6 +29,10 @@ ReadWritePaths=/data
 # fonts.conf يضع كاش الخطوط داخل مجلد الخطوط، و/opt للقراءة فقط —
 # بدون هذا يفشل بناء الكاش فتتدهور الأسماء العربية في الصورة
 ReadWritePaths=/opt/enclave/welcome-bot/assets/fonts
+# <cachedir> النسبي بـ fonts.conf يُحلّ بالنسبة لمجلد العمل (فوق assets/fonts
+# بمستوى)، لا بالنسبة لمجلد fonts.conf نفسه — بدون هذا يفشل الكاش كل بدء تشغيل
+# (غير خطير: يرجع لعدم وجود كاش دائم، بس أبطأ بإعادة تحليل الخطوط)
+ReadWritePaths=/opt/enclave/welcome-bot/.fc-cache
 CacheDirectory=enclave-bot
 
 [Install]
