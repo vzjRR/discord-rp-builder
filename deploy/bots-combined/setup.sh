@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Deploys both Discord bots on one machine, separate from the admin panel:
-# the Enclave server bot, and the LSPD server bot. Each still runs as its
-# own service with its own secrets file and its own token, and each talks
-# to only its own Discord server -- one bot per server, same as before.
-# Sharing a machine here is just where the two processes happen to run.
+# Deploys the Enclave server bot on its own machine, separate from the
+# admin panel. LSPD's bots (welcome, logs, tickets) are a fully separate
+# Discord application on a fully separate server, with their own repo and
+# deploy script now -- see https://github.com/vzjRR/ENCLAVE-LSPD.
 
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,30 +10,27 @@ DEPLOY="$(dirname "$DIR")"
 
 source "$DEPLOY/common/install-base.sh"
 source "$DEPLOY/enclave-bot/install.sh"
-source "$DEPLOY/lspd-bot/install.sh"
 
 base_install
 
 install_enclave_bot "$DEPLOY/enclave-bot"
-install_lspd_bot    "$DEPLOY/lspd-bot"
 
-log "Both bots installed"
+log "Enclave bot installed"
 cat <<'DONE'
 
 Remaining steps, in order:
 
-  1. Fill in secrets -- two separate files, one token each:
+  1. Fill in secrets:
 
-       nano /etc/enclave/enclave-bot.env   # Enclave bot
-       nano /etc/enclave/lspd-bot.env      # LSPD bot (different token and guild!)
+       nano /etc/enclave/enclave-bot.env
 
-  2. Start all three:
+  2. Start it:
 
-       systemctl enable --now enclave-bot lspd-bot lspd-logs-bot
+       systemctl enable --now enclave-bot
 
   3. Watch:
 
-       systemctl status enclave-bot lspd-bot lspd-logs-bot --no-pager
+       systemctl status enclave-bot --no-pager
        journalctl -u enclave-bot -f
 
 Note: the admin panel is a separate deployment (deploy/enclave-panel/).

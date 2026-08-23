@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # نشر بوت سيرفر Enclave وحده على هذا الخادم.
-# للنشر المجمّع مع المنصة وبوت LSPD على خادم واحد: deploy/all-in-one/
+# للنشر المجمّع مع المنصة على خادم واحد: deploy/all-in-one/
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/../common/install-base.sh"

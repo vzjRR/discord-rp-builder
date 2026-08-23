@@ -1,23 +1,20 @@
-# البوتان معًا — منصة الإدارة على خادم منفصل
+# بوت Enclave — منصة الإدارة على خادم منفصل
 
-ينشر بوت سيرفر Enclave وبوت سيرفر LSPD معًا على خادم واحد، ومنصة
-الإدارة على خادمها الخاص وحدها.
+ينشر بوت سيرفر Enclave على خادمه، ومنصة الإدارة على خادمها الخاص وحدها.
 
 > **لديك خادم يعمل عليه Enclave-RP-Store أو منصة الإدارة بالفعل؟** استعمل
 > [`EXISTING-SERVER.md`](./EXISTING-SERVER.md) بدلًا من هذه الصفحة —
-> يضيف البوتين على ذلك الخادم نفسه بلا خادم Oracle ثانٍ، وبمسارات لا
+> يضيف البوت على ذلك الخادم نفسه بلا خادم Oracle ثانٍ، وبمسارات لا
 > تتقاطع مع ما هو قائم.
 
-**بوت واحد لكل سيرفر** — كما هو مبني أصلًا. اجتماعهما هنا في خادم واحد
-لا يعني دمجهما في عملية واحدة: كلٌّ يعمل بخدمة `systemd` مستقلة، وملف
-أسرار مستقل بتوكن مختلف، ويتصل بسيرفر ديسكورد مختلف. تُشغَّل وتُوقَف
-وتُحدَّث كلٌّ على حدة، وسقوط إحداها لا يُسقط الأخرى.
+> بوتات سيرفر LSPD (ترحيب، لوقات، تذاكر) لها مستودع ونشرة منفصلان تمامًا
+> الآن: [`vzjRR/ENCLAVE-LSPD`](https://github.com/vzjRR/ENCLAVE-LSPD).
 
 | | |
 |---|---|
-| الخدمات | `enclave-bot` و`lspd-bot` + `lspd-logs-bot` |
-| الأسرار | `/etc/enclave/enclave-bot.env` و`/etc/enclave/lspd-bot.env` (يشترك فيه `lspd-logs-bot` عمدًا) |
-| البيانات | `/data/server-events.db` (لبوت Enclave وحده) |
+| الخدمة | `enclave-bot` |
+| الأسرار | `/etc/enclave/enclave-bot.env` |
+| البيانات | `/data/server-events.db` |
 
 ## النشر
 
@@ -26,7 +23,7 @@
 | الخيار | القيمة |
 |---|---|
 | Image | Ubuntu 24.04 |
-| Shape | `VM.Standard.A1.Flex` — يكفي معالج واحد و٤ غيغابايت لبوتين اثنين |
+| Shape | `VM.Standard.A1.Flex` |
 
 **Advanced options ← Management ← Paste cloud-init script**، والصق
 [`cloud-init.yaml`](./cloud-init.yaml) **كما هو دون أي تعديل** — أي حرف
@@ -41,36 +38,30 @@ ssh ubuntu@<عنوان-هذا-الخادم>
 sudo -i
 ```
 
-**املأ ملفَّي الأسرار — منفصلان بتوكنين مختلفين:**
+**املأ ملف الأسرار:**
 
 ```bash
 nano /etc/enclave/enclave-bot.env
-nano /etc/enclave/lspd-bot.env
 ```
 
-> ⚠️ **لا تخلط بينهما.** كلاهما يقرأ `DISCORD_TOKEN` و`GUILD_ID` بالاسمين
-> نفسيهما، لكنهما بوتان مختلفان على سيرفرين مختلفين. وضع توكن Enclave في
-> ملف LSPD (أو العكس) يجعل البوت يرحّب في السيرفر الخطأ بهوية البوت
-> الخطأ.
-
-**شغّلها كلها:**
+**شغّله:**
 
 ```bash
-systemctl enable --now enclave-bot lspd-bot lspd-logs-bot
-systemctl status enclave-bot lspd-bot lspd-logs-bot --no-pager
+systemctl enable --now enclave-bot
+systemctl status enclave-bot --no-pager
 journalctl -u enclave-bot -f
 ```
 
-## ما يحتاجه كل بوت من ديسكورد
+## ما يحتاجه من ديسكورد
 
-لكل واحد على حدة، في Developer Portal الخاص بتطبيقه:
+في Developer Portal الخاص بتطبيقه:
 
 - **Server Members Intent** مفعّلة، وإلا لم يصله حدث انضمام عضو أصلًا.
 - صلاحية **Manage Server** في سيرفره، ليقرأ قائمة الدعوات فيعرف من دعا
   العضو الجديد. بدونها يعمل الترحيب، لكن يظهر كل عضو وكأنه دخل عبر رابط
   السيرفر العام لا عبر دعوة أحد.
-- بوت Enclave وحده يحتاج `GuildMessages` أيضًا (لعدّاد النشاط في صفحة
-  حالة السيرفر) — غير مميّزة ولا تحتاج تفعيلًا، ولا يُقرأ نص أي رسالة.
+- `GuildMessages` أيضًا (لعدّاد النشاط في صفحة حالة السيرفر) — غير
+  مميّزة ولا تحتاج تفعيلًا، ولا يُقرأ نص أي رسالة.
 
 ## منصة الإدارة على الخادم الآخر
 
@@ -84,7 +75,6 @@ journalctl -u enclave-bot -f
 
 ```bash
 cd /opt/enclave && git pull
-systemctl restart enclave-bot lspd-bot lspd-logs-bot   # الكل
-systemctl restart lspd-bot                             # واحد فقط
+systemctl restart enclave-bot
 journalctl -u enclave-bot -f
 ```

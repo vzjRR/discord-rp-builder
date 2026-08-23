@@ -1,12 +1,16 @@
 # كل شيء على خادم واحد
 
-ينشر الخدمات الثلاث معًا: منصة الإدارة، وبوت سيرفر Enclave، وبوت سيرفر
-LSPD. **هذا هو الوضع الموصى به.**
+ينشر خدمتين معًا: منصة الإدارة، وبوت سيرفر Enclave. **هذا هو الوضع
+الموصى به.**
+
+> بوتات سيرفر LSPD (ترحيب، لوقات، تذاكر) لها مستودع ونشرة منفصلان تمامًا
+> الآن: [`vzjRR/ENCLAVE-LSPD`](https://github.com/vzjRR/ENCLAVE-LSPD) —
+> يمكن نشرها على نفس هذا الخادم أو أي خادم آخر.
 
 ## لماذا خادم واحد
 
-- الشريحة المجانية الواحدة تسع الثلاثة بفائض كبير: أربع عمليات Node
-  خفيفة، ذروتها لحظة توليد صورة ترحيب.
+- الشريحة المجانية الواحدة تسع الاثنتين بفائض كبير: عمليتا Node خفيفتان،
+  ذروتهما لحظة توليد صورة ترحيب.
 - المنصة وبوت Enclave يتشاركان `/data/server-events.db` — البوت يكتبه
   والمنصة تقرأه. اجتماعهما يجعل صفحة «حالة السيرفر» كاملة دون ترتيب
   إضافي؛ وافتراقهما يفقدها «آخر المغادرين» و«الأكثر تفاعلًا».
@@ -69,16 +73,12 @@ ssh ubuntu@<عنوان-الخادم>
 sudo -i
 ```
 
-**املأ الأسرار — ثلاثة ملفات منفصلة:**
+**املأ الأسرار — ملفان منفصلان:**
 
 ```bash
 nano /etc/enclave/panel.env         # المنصة
 nano /etc/enclave/enclave-bot.env   # بوت Enclave
-nano /etc/enclave/lspd-bot.env      # بوت LSPD
 ```
-
-> ⚠️ بوت LSPD **توكنه وسيرفره مختلفان** عن Enclave رغم تطابق أسماء
-> المتغيرات. خلطهما يجعله يرحّب في السيرفر الخطأ.
 
 > `SESSION_SECRET` في `panel.env` يجب أن يبقى كما كان على الاستضافة
 > السابقة. تغييره يُبطل جلسات كل المسؤولين فيُطالَبون بالدخول من جديد.
@@ -95,8 +95,8 @@ chown -R enclave:enclave /data
 
 ```bash
 cloudflared service install <رمز-النفق>
-systemctl enable --now enclave-panel enclave-bot lspd-bot lspd-logs-bot
-systemctl status enclave-panel enclave-bot lspd-bot lspd-logs-bot --no-pager
+systemctl enable --now enclave-panel enclave-bot
+systemctl status enclave-panel enclave-bot --no-pager
 ```
 
 ## ٤) تحقّق قبل حذف القديم
@@ -104,8 +104,6 @@ systemctl status enclave-panel enclave-bot lspd-bot lspd-logs-bot --no-pager
 ```bash
 journalctl -u enclave-panel -n 30 --no-pager
 journalctl -u enclave-bot -n 30 --no-pager
-journalctl -u lspd-bot -n 30 --no-pager
-journalctl -u lspd-logs-bot -n 30 --no-pager
 ```
 
 ثم من المتصفح:
@@ -116,19 +114,21 @@ journalctl -u lspd-logs-bot -n 30 --no-pager
 - [ ] «سجل النشاط» يعرض القيود القديمة
 - [ ] «حالة السيرفر» تعرض الأعضاء
 - [ ] عضو جديد يدخل Enclave فتصله صورة ترحيب
-- [ ] عضو جديد يدخل LSPD فتصله صورة ترحيب
 
 **عند اكتمالها كلها فقط** احذف مشاريع الاستضافة القديمة.
+
+بوتات LSPD منفصلة تمامًا — انشرها وتحقّق منها عبر
+[`vzjRR/ENCLAVE-LSPD`](https://github.com/vzjRR/ENCLAVE-LSPD).
 
 ## التشغيل اليومي
 
 ```bash
 # تحديث الكود لكل الخدمات
 cd /opt/enclave && git pull
-systemctl restart enclave-panel enclave-bot lspd-bot lspd-logs-bot
+systemctl restart enclave-panel enclave-bot
 
 # خدمة واحدة فقط
-systemctl restart lspd-bot
+systemctl restart enclave-bot
 
 # المتابعة
 journalctl -u enclave-panel -f

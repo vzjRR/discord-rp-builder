@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# Installs both Discord bots (Enclave welcome/tracking bot + LSPD bot) on a
-# server that ALREADY runs something else -- specifically written for the
-# same box described in deploy/enclave-panel/EXISTING-SERVER.md: user
-# `enclave` owns /opt/enclave/app (Enclave-RP-Store), and usually user
-# `enclave-admin` owns /opt/enclave-admin (the admin panel, if its own
+# Installs the Enclave welcome/tracking bot on a server that ALREADY runs
+# something else -- specifically written for the same box described in
+# deploy/enclave-panel/EXISTING-SERVER.md: user `enclave` owns
+# /opt/enclave/app (Enclave-RP-Store), and usually user `enclave-admin`
+# owns /opt/enclave-admin (the admin panel, if its own
 # install-on-existing-server.sh already ran).
+#
+# LSPD's bots (welcome, logs, tickets) live in their own repo and their own
+# deploy script now -- see https://github.com/vzjRR/ENCLAVE-LSPD -- since
+# they're a fully separate Discord bot on a fully separate Discord server
+# with nothing shared with the Enclave side. Run that repo's
+# deploy/install.sh for LSPD; this script only covers Enclave.
 #
 # This is NOT deploy/bots-combined/setup.sh. That one assumes a fresh
 # machine: APP_DIR defaults to /opt/enclave (the SAME path the store's own
@@ -14,30 +20,21 @@
 # `enclave` too -- the store's own user. Running the generic installer here
 # would be destructive; this script exists so that never happens.
 #
-# Two different trust models, on purpose:
+# The Enclave bot and the admin panel already share ONE Discord bot token
+# and ONE guild -- see admin-panel/README.md, which documents that on the
+# old Railway setup they ran "بنفس سيرفس welcome-bot... يستخدمون نفس
+# DISCORD_TOKEN و GUILD_ID". They also need to share two files on disk:
+# server-events.db (bot writes, panel reads, for the "آخر المغادرين"/"الأكثر
+# تفاعلًا" status-page widgets) and message-templates.json (panel writes when
+# an owner edits the welcome message, bot reads when it sends one). Since
+# they already trust each other with the same token, this script runs the
+# Enclave bot as the SAME `enclave-admin` user the panel uses (creating it
+# if the panel isn't installed yet), in the SAME /opt/enclave-admin
+# checkout, sharing its data/ folder directly. That's not a new trust
+# boundary -- it's the one that already existed on Railway -- so there is
+# no cross-user group/permission plumbing to get right.
 #
-#   - The Enclave bot and the admin panel already share ONE Discord bot
-#     token and ONE guild -- see admin-panel/README.md, which documents
-#     that on the old Railway setup they ran "بنفس سيرفس welcome-bot...
-#     يستخدمون نفس DISCORD_TOKEN و GUILD_ID". They also need to share two
-#     files on disk: server-events.db (bot writes, panel reads, for the
-#     "آخر المغادرين"/"الأكثر تفاعلًا" status-page widgets) and
-#     message-templates.json (panel writes when an owner edits the welcome
-#     message, bot reads when it sends one). Since they already trust each
-#     other with the same token, this script runs the Enclave bot as the
-#     SAME `enclave-admin` user the panel uses (creating it if the panel
-#     isn't installed yet), in the SAME /opt/enclave-admin checkout,
-#     sharing its data/ folder directly. That's not a new trust boundary --
-#     it's the one that already existed on Railway -- so there is no
-#     cross-user group/permission plumbing to get right.
-#
-#   - The LSPD bot is a fully separate Discord bot on a fully separate
-#     Discord server: different token, different guild, no shared data.
-#     It gets its own user, its own checkout, its own env file -- full
-#     isolation, since it shares nothing with the Enclave side to begin
-#     with.
-#
-# Neither bot opens an inbound port: PORT is left unset in both units (see
+# The bot doesn't open an inbound port: PORT is left unset in its unit (see
 # welcome-bot/bot.js -- the optional health-check server only starts if
 # PORT is set). So, like the panel's own installer, this script never
 # touches ufw/iptables, and never forces a system Node upgrade if a
@@ -80,14 +77,13 @@ if [[ "$node_ok" != true ]]; then
   apt-get install -y nodejs
 fi
 
-# ── Shared build + font deps (the welcome bots draw name text via
-#    fontconfig; installing these is additive, nothing existing depends
-#    on a specific absence of them). The full Noto suite (not just
-#    fonts-noto-core) is needed so uncommon scripts in Discord display
-#    names -- Cherokee, Georgian, Runic, color emoji, etc. -- render as
-#    real glyphs instead of tofu boxes; fontconfig picks them up
-#    automatically via each bot's fonts.conf, no code change required
-#    per script. ─────────────────────────────────────────────────────
+# ── Build + font deps (the welcome bot draws name text via fontconfig;
+#    installing these is additive, nothing existing depends on a specific
+#    absence of them). The full Noto suite (not just fonts-noto-core) is
+#    needed so uncommon scripts in Discord display names -- Cherokee,
+#    Georgian, Runic, color emoji, etc. -- render as real glyphs instead
+#    of tofu boxes; fontconfig picks them up automatically via the bot's
+#    fonts.conf, no code change required per script. ────────────────────
 log "Installing build and font dependencies (only if missing)"
 apt-get update -y
 apt-get install -y --no-install-recommends \
@@ -202,162 +198,7 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 
-##############################################################################
-# LSPD bot -- fully independent: own user, own checkout, own everything
-##############################################################################
-LSPD_DIR="/opt/lspd-bot"
-LSPD_USER="lspd-bot"
-LSPD_ENV="/etc/lspd-bot.env"
-
-log "LSPD bot: user, checkout"
-if ! id -u "$LSPD_USER" >/dev/null 2>&1; then
-  useradd --system --create-home --shell /usr/sbin/nologin "$LSPD_USER"
-fi
-
-# Same "dubious ownership" issue as the Enclave bot above -- matters here
-# on any re-run, once this checkout is owned by lspd-bot instead of root.
-git config --global --add safe.directory "$LSPD_DIR"
-
-if [[ -d "$LSPD_DIR/.git" ]]; then
-  git -C "$LSPD_DIR" fetch origin master --quiet
-  git -C "$LSPD_DIR" reset --hard origin/master --quiet
-else
-  mkdir -p "$LSPD_DIR"
-  git clone --depth 1 "$REPO_URL" "$LSPD_DIR" --quiet
-fi
-chown -R "$LSPD_USER:$LSPD_USER" "$LSPD_DIR"
-
-if [[ ! -f "$LSPD_ENV" ]]; then
-  cat > "$LSPD_ENV" <<EOF
-# LSPD bot secrets -- its own Discord bot application, its own server. NOT
-# the same token as the Enclave bot/panel above.
-
-DISCORD_TOKEN=
-GUILD_ID=
-EOF
-  chmod 600 "$LSPD_ENV"
-  chown root:root "$LSPD_ENV"
-  log "Created $LSPD_ENV -- fill it in before starting the service"
-else
-  log "$LSPD_ENV already exists -- left untouched"
-fi
-
-log "Installing LSPD bot dependencies"
-runuser -u "$LSPD_USER" -- bash -c "cd '$LSPD_DIR/lspd-welcome-bot' && npm install --omit=dev --no-audit --no-fund"
-# Logs run as a second process off the SAME checkout, reusing $LSPD_ENV (same
-# DISCORD_TOKEN + GUILD_ID as the welcome bot) so it posts as the one LSPD
-# bot identity instead of a second Discord application.
-runuser -u "$LSPD_USER" -- bash -c "cd '$LSPD_DIR/logs-bot' && npm install --omit=dev --no-audit --no-fund"
-
-log "Installing lspd-bot.service"
-cat > /etc/systemd/system/lspd-bot.service <<EOF
-[Unit]
-Description=LSPD server bot
-After=network-online.target
-Wants=network-online.target
-StartLimitBurst=5
-StartLimitIntervalSec=60
-
-[Service]
-Type=simple
-User=${LSPD_USER}
-Group=${LSPD_USER}
-WorkingDirectory=${LSPD_DIR}/lspd-welcome-bot
-EnvironmentFile=${LSPD_ENV}
-Environment=NODE_ENV=production
-Environment=PORT=
-# Bundled fonts for rendering names in the welcome image -- without this it
-# falls back to a default system font, dropping glyphs for anything that
-# font doesn't cover (Arabic, decorative symbols, math-alphanumeric letters
-# some Discord names use, e.g. "𝑃𝐿𝑎𝑛𝑘"), leaving the name blank.
-Environment=FONTCONFIG_PATH=${LSPD_DIR}/lspd-welcome-bot/assets/fonts
-Environment=XDG_CACHE_HOME=/var/cache/lspd-bot
-ExecStart=/usr/bin/node bot.js
-Restart=always
-RestartSec=5
-
-MemoryHigh=256M
-MemoryMax=384M
-
-NoNewPrivileges=true
-PrivateTmp=true
-PrivateDevices=true
-ProtectSystem=strict
-ProtectHome=true
-# fonts.conf writes its cache inside the fonts dir itself, and /opt is
-# read-only under ProtectSystem=strict -- without this the cache build
-# fails and glyph quality degrades.
-ReadWritePaths=${LSPD_DIR}/lspd-welcome-bot/assets/fonts
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictSUIDSGID=true
-RestrictRealtime=true
-RestrictNamespaces=true
-LockPersonality=true
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
-SystemCallFilter=@system-service
-SystemCallErrorNumber=EPERM
-
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=lspd-bot
-CacheDirectory=lspd-bot
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl daemon-reload
-
-log "Installing lspd-logs-bot.service"
-cat > /etc/systemd/system/lspd-logs-bot.service <<EOF
-[Unit]
-Description=LSPD server logs (same bot identity as lspd-bot, separate process)
-After=network-online.target
-Wants=network-online.target
-StartLimitBurst=5
-StartLimitIntervalSec=60
-
-[Service]
-Type=simple
-User=${LSPD_USER}
-Group=${LSPD_USER}
-WorkingDirectory=${LSPD_DIR}/logs-bot
-EnvironmentFile=${LSPD_ENV}
-Environment=NODE_ENV=production
-ExecStart=/usr/bin/node bot.js
-Restart=always
-RestartSec=5
-
-MemoryHigh=128M
-MemoryMax=192M
-
-NoNewPrivileges=true
-PrivateTmp=true
-PrivateDevices=true
-ProtectSystem=strict
-ProtectHome=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictSUIDSGID=true
-RestrictRealtime=true
-RestrictNamespaces=true
-LockPersonality=true
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
-SystemCallFilter=@system-service
-SystemCallErrorNumber=EPERM
-
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=lspd-logs-bot
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl daemon-reload
-
-log "Done. No firewall rule was touched -- none of the bots need one (no inbound port)."
+log "Done. No firewall rule was touched -- the bot doesn't need one (no inbound port)."
 cat <<DONE
 
 Remaining steps:
@@ -365,20 +206,17 @@ Remaining steps:
   1. Fill in secrets:
 
        nano ${ENCLAVE_ENV}
-       nano ${LSPD_ENV}
 
-     ⚠️  Enclave bot's DISCORD_TOKEN and GUILD_ID must match the admin
-     panel's /etc/enclave-admin.env (same bot application). LSPD's must
-     NOT match either -- it's a different bot on a different server.
-     lspd-logs-bot reuses the same ${LSPD_ENV} on purpose (same bot
-     identity as lspd-bot, just a second process) -- nothing extra to fill.
+     ⚠️  Must match the admin panel's /etc/enclave-admin.env (same bot
+     application).
 
-  2. Start all three:
+  2. Start it:
 
-       systemctl enable --now enclave-admin-bot lspd-bot lspd-logs-bot
-       systemctl status enclave-admin-bot lspd-bot lspd-logs-bot --no-pager
+       systemctl enable --now enclave-admin-bot
+       systemctl status enclave-admin-bot --no-pager
        journalctl -u enclave-admin-bot -f
 
 The store's and panel's services, users, ports, and firewall rules were
-not touched by any of this.
+not touched by any of this. LSPD's bots are a separate deployment --
+see https://github.com/vzjRR/ENCLAVE-LSPD.
 DONE

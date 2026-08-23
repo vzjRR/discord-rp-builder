@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# نشر كل شيء على خادم واحد: المنصة، وبوت Enclave، وبوت LSPD.
+# نشر المنصة وبوت Enclave على خادم واحد. بوتات LSPD (ترحيب، لوقات، تذاكر)
+# لها مستودع ونشرة منفصلان تمامًا الآن: vzjRR/ENCLAVE-LSPD.
 #
-# هذا هو الوضع الموصى به. الشريحة المجانية الواحدة تسعها بفائض كبير،
-# والمنصة وبوت Enclave يتشاركان /data/server-events.db أصلًا — فبقاؤهما
+# المنصة وبوت Enclave يتشاركان /data/server-events.db أصلًا — فبقاؤهما
 # معًا يجعل صفحة حالة السيرفر كاملة دون ترتيب إضافي.
 #
 # الأساس المشترك (الحزم، Node، المستخدم، الكود، الجدار الناري) يُركَّب مرة
@@ -16,24 +16,21 @@ DEPLOY="$(dirname "$DIR")"
 source "$DEPLOY/common/install-base.sh"
 source "$DEPLOY/enclave-panel/install.sh"
 source "$DEPLOY/enclave-bot/install.sh"
-source "$DEPLOY/lspd-bot/install.sh"
 
 base_install
 
 install_enclave_panel "$DEPLOY/enclave-panel"
 install_enclave_bot   "$DEPLOY/enclave-bot"
-install_lspd_bot      "$DEPLOY/lspd-bot"
 
-log "رُكِّبت الخدمات الثلاث"
+log "رُكِّبت الخدمتان"
 cat <<'DONE'
 
 الخطوات المتبقية بالترتيب:
 
-  ١. املأ الأسرار — ثلاثة ملفات منفصلة، ولكل بوت توكنه:
+  ١. املأ الأسرار — ملفان منفصلان:
 
        nano /etc/enclave/panel.env        # المنصة
        nano /etc/enclave/enclave-bot.env  # بوت Enclave
-       nano /etc/enclave/lspd-bot.env     # بوت LSPD (توكن وسيرفر مختلفان!)
 
   ٢. استعد بيانات المنصة (ارفع ملف النسخة عبر Cloud Shell أولًا):
 
@@ -46,11 +43,13 @@ cat <<'DONE'
 
   ٤. شغّل الخدمات:
 
-       systemctl enable --now enclave-panel enclave-bot lspd-bot lspd-logs-bot
+       systemctl enable --now enclave-panel enclave-bot
 
   ٥. تابع:
 
-       systemctl status enclave-panel enclave-bot lspd-bot lspd-logs-bot --no-pager
+       systemctl status enclave-panel enclave-bot --no-pager
        journalctl -u enclave-panel -f
 
+بوتات LSPD منفصلة تمامًا — انشرها من vzjRR/ENCLAVE-LSPD (على نفس هذا
+الخادم أو أي خادم آخر، حسب رغبتك).
 DONE

@@ -98,10 +98,12 @@ systemctl restart enclave-admin-panel
 journalctl -u enclave-admin-panel -f
 ```
 
-## أردت البوتين على هذا الخادم نفسه أيضًا؟
+## أردت بوت Enclave على هذا الخادم نفسه أيضًا؟
 
 استعمل [`bots-combined/EXISTING-SERVER.md`](../bots-combined/EXISTING-SERVER.md)
-— يضيف بوت Enclave وبوت LSPD على نفس هذا الصندوق دون خادم Oracle ثانٍ،
-وبوت Enclave تحديدًا يشارك مستخدم المنصة ومجلد بياناتها مباشرةً (نفس
-`DISCORD_TOKEN`، كما كان الحال على Railway)، فتعمل صفحة «حالة السيرفر»
-كاملةً بلا أي نقص.
+— يضيفه على نفس هذا الصندوق دون خادم Oracle ثانٍ، ويشارك مستخدم المنصة
+ومجلد بياناتها مباشرةً (نفس `DISCORD_TOKEN`، كما كان الحال على Railway)،
+فتعمل صفحة «حالة السيرفر» كاملةً بلا أي نقص.
+
+بوتات LSPD (ترحيب، لوقات، تذاكر) منفصلة تمامًا — راجع
+[`vzjRR/ENCLAVE-LSPD`](https://github.com/vzjRR/ENCLAVE-LSPD).

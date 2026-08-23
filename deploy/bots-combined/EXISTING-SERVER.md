@@ -1,10 +1,15 @@
-# تشغيل البوتين على خادمك الحالي (مع Enclave-RP-Store والمنصة)
+# تشغيل بوت Enclave على خادمك الحالي (مع Enclave-RP-Store والمنصة)
 
 هذا لمن نشر المنصة بالفعل على خادمه الحالي عبر
 [`enclave-panel/EXISTING-SERVER.md`](../enclave-panel/EXISTING-SERVER.md)
-ويريد إضافة البوتين على نفس الخادم بدل خادم `bots-combined` منفصل. كل
-شيء — المتجر والمنصة والبوتان — على صندوق واحد، وبلا حاجة لخادم Oracle
+ويريد إضافة بوت Enclave على نفس الخادم بدل خادم `bots-combined` منفصل. كل
+شيء — المتجر والمنصة والبوت — على صندوق واحد، وبلا حاجة لخادم Oracle
 ثانٍ إطلاقًا.
+
+> بوتات سيرفر LSPD (ترحيب، لوقات، تذاكر) لها مستودع ونشرة منفصلان تمامًا
+> الآن: [`vzjRR/ENCLAVE-LSPD`](https://github.com/vzjRR/ENCLAVE-LSPD)،
+> وتُشغَّل على نفس هذا الخادم أيضًا (تحت `/opt/lspd-bot`) لكن من مستودعها
+> الخاص — لا علاقة لها بهذا المستودع بعد الآن.
 
 ## لماذا هذا آمن على خادم فيه تطبيقان حيّان بالفعل
 
@@ -13,20 +18,20 @@
 (`/opt/enclave/app`)، ولو شغّلته هنا فسيمسح المتجر الحيّ عن طريق الخطأ.
 هذا السكربت مختلف كليًّا، وبمسارات لا تتقاطع مع أي شيء قائم:
 
-| | المتجر (موجود) | المنصة (إن نُشرت) | بوت Enclave (يضيفه هذا السكربت) | بوت LSPD (يضيفه هذا السكربت) |
-|---|---|---|---|---|
-| المستخدم | `enclave` | `enclave-admin` | `enclave-admin` (**نفسه**) | `lspd-bot` |
-| المجلد | `/opt/enclave/app` | `/opt/enclave-admin` | `/opt/enclave-admin/welcome-bot` | `/opt/lspd-bot` |
-| ملف الأسرار | `/etc/enclave.env` | `/etc/enclave-admin.env` | `/etc/enclave-admin-bot.env` | `/etc/lspd-bot.env` |
-| خدمة systemd | `enclave.service` | `enclave-admin-panel.service` | `enclave-admin-bot.service` | `lspd-bot.service` + `lspd-logs-bot.service` |
+| | المتجر (موجود) | المنصة (إن نُشرت) | بوت Enclave (يضيفه هذا السكربت) |
+|---|---|---|---|
+| المستخدم | `enclave` | `enclave-admin` | `enclave-admin` (**نفسه**) |
+| المجلد | `/opt/enclave/app` | `/opt/enclave-admin` | `/opt/enclave-admin/welcome-bot` |
+| ملف الأسرار | `/etc/enclave.env` | `/etc/enclave-admin.env` | `/etc/enclave-admin-bot.env` |
+| خدمة systemd | `enclave.service` | `enclave-admin-panel.service` | `enclave-admin-bot.service` |
 
 **السكربت لا يلمس الجدار الناري إطلاقًا** — لا `ufw`، ولا `iptables`. ولا
-بوت من الاثنين يفتح منفذًا واردًا أصلًا: خادم الفحص الاختياري داخل كل بوت
-لا يعمل إلا إذا كان `PORT` معرَّفًا، وهذا السكربت يتركه فارغًا عمدًا.
+يفتح البوت منفذًا واردًا أصلًا: خادم الفحص الاختياري داخله لا يعمل إلا
+إذا كان `PORT` معرَّفًا، وهذا السكربت يتركه فارغًا عمدًا.
 
 Node أيضًا لا يُعاد تثبيته إن وُجد إصدار ٢٠ أو أحدث على الخادم أصلًا.
 
-## لماذا بوت Enclave بمستخدم المنصة نفسه — وبوت LSPD لا
+## لماذا بوت Enclave بمستخدم المنصة نفسه
 
 بوت Enclave والمنصة **كانا أصلًا** توأمين على Railway: نفس الخدمة، ونفس
 `DISCORD_TOKEN` و`GUILD_ID` (بوت ديسكورد واحد يخدم الاثنين معًا — راجع
@@ -37,10 +42,6 @@ Node أيضًا لا يُعاد تثبيته إن وُجد إصدار ٢٠ أو 
 يتشاركان التوكن نفسه أصلًا، فتشغيلهما بمستخدم لينكس واحد لا يفتح حدود ثقة
 جديدة — إنها الحدود نفسها التي كانت قائمة على Railway، فقط بخدمتين
 منفصلتين بدل عملية واحدة مدموجة.
-
-بوت LSPD مختلف كليًّا: توكن آخر، سيرفر ديسكورد آخر، ولا بيانات مشتركة مع
-أي شيء آخر على هذا الخادم. فله مستخدمه ومجلده وملفه الخاص تمامًا — عزل
-كامل، إذ لا شيء يُخسَر بإبعاده عن دائرة ثقة Enclave.
 
 > إن لم تكن نشرت المنصة بعد، لا بأس: يُنشئ هذا السكربت مستخدم
 > `enclave-admin` ومجلد `/opt/enclave-admin` بنفسه إن لم يكونا موجودين.
@@ -64,25 +65,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/vzjRR/discord-rp-builder/mas
 
 ثم:
 
-**١) املأ ملفَّي الأسرار — منفصلان بتوكنين مختلفين:**
+**١) املأ ملف الأسرار:**
 
 ```bash
 nano /etc/enclave-admin-bot.env
-nano /etc/lspd-bot.env
 ```
 
-> ⚠️ **`DISCORD_TOKEN` و`GUILD_ID` في `/etc/enclave-admin-bot.env` يجب أن
-> يطابقا ما في `/etc/enclave-admin.env`** (ملف المنصة) — بوت ديسكورد واحد
-> لسيرفر Enclave يخدم الاثنين معًا. أما `/etc/lspd-bot.env` فتوكن وسيرفر
-> مختلفان تمامًا؛ خلطهما يجعل أحد البوتين يرحّب في السيرفر الخطأ بهوية
-> البوت الخطأ. `lspd-logs-bot` يقرأ نفس `/etc/lspd-bot.env` عمدًا — عملية
-> منفصلة، لكن نفس هوية بوت LSPD نفسها، لا شيء إضافي يُملأ له.
+> ⚠️ **يجب أن يطابق `DISCORD_TOKEN` و`GUILD_ID` ما في
+> `/etc/enclave-admin.env`** (ملف المنصة) — بوت ديسكورد واحد لسيرفر
+> Enclave يخدم الاثنين معًا.
 
-**٢) شغّلها كلها:**
+**٢) شغّله:**
 
 ```bash
-systemctl enable --now enclave-admin-bot lspd-bot lspd-logs-bot
-systemctl status enclave-admin-bot lspd-bot lspd-logs-bot --no-pager
+systemctl enable --now enclave-admin-bot
+systemctl status enclave-admin-bot --no-pager
 journalctl -u enclave-admin-bot -f
 ```
 
@@ -94,27 +91,29 @@ systemctl status enclave-admin-panel --no-pager   # المنصة ما زالت �
 curl -s localhost:3000/api/health                 # المتجر ما زال يردّ؟
 ```
 
-## ما يحتاجه كل بوت من ديسكورد
+## ما يحتاجه البوت من ديسكورد
 
-لكل واحد على حدة، في Developer Portal الخاص بتطبيقه:
+في Developer Portal الخاص بتطبيقه:
 
 - **Server Members Intent** مفعّلة، وإلا لم يصله حدث انضمام عضو أصلًا.
 - صلاحية **Manage Server** في سيرفره، ليقرأ قائمة الدعوات فيعرف من دعا
   العضو الجديد.
-- بوت Enclave وحده يحتاج `GuildMessages` أيضًا (لعدّاد النشاط في صفحة
-  حالة السيرفر) — غير مميّزة ولا تحتاج تفعيلًا.
+- `GuildMessages` أيضًا (لعدّاد النشاط في صفحة حالة السيرفر) — غير
+  مميّزة ولا تحتاج تفعيلًا.
 
 ## التشغيل اليومي
 
 ```bash
 cd /opt/enclave-admin && git pull && systemctl restart enclave-admin-bot
-cd /opt/lspd-bot && git pull && systemctl restart lspd-bot lspd-logs-bot
 journalctl -u enclave-admin-bot -f
 ```
+
+بوتات LSPD منفصلة تمامًا الآن — راجع
+[`vzjRR/ENCLAVE-LSPD`](https://github.com/vzjRR/ENCLAVE-LSPD) لتحديثها.
 
 ## ميزة إضافية بهذا الترتيب
 
 بوت Enclave والمنصة على نفس الخادم يعنى صفحة «حالة السيرفر» تعمل
-**كاملةً بلا أي نقص** — بعكس نشر البوتين على خادم `bots-combined` منفصل،
+**كاملةً بلا أي نقص** — بعكس نشر البوت على خادم `bots-combined` منفصل،
 حيث تُفقد بيانات «آخر المغادرين» و«الأكثر تفاعلًا» لأنها تعيش في ملف على
 خادم آخر لا تراه المنصة.
