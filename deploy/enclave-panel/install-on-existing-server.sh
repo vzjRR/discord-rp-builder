@@ -128,7 +128,7 @@ DISCORD_TOKEN=
 GUILD_ID=
 SESSION_SECRET=
 
-PUBLIC_BASE_URL=https://enclave-admin.tsh87.com
+PUBLIC_BASE_URL=https://panel.enclaverp.cc
 CLOUDFLARE_SECRET=
 # This deployment reaches the internet only via an outbound Cloudflare
 # tunnel (no public origin, no Worker injecting a header) -- so this must
