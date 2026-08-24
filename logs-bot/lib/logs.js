@@ -1,8 +1,25 @@
 // دالة مشتركة لكل event handlers بمجلد events/ — تحل القناة من الاسم وترسل الإمبد.
 // نفس فلسفة lib/permissions.js: لو القناة غير موجودة، تحذير بالكونسول وتجاهل بدل ما يكرش البوت.
 
+const fs = require('fs');
+const path = require('path');
 const { EmbedBuilder } = require('discord.js');
 const logsConfig = require('../config/logs');
+
+// نسخة دائمة من كل لوق على القرص — بغض النظر عن نجاح الإرسال لديسكورد أو
+// حتى وجود القناة أصلًا، عشان تبقى مصدر موثوق مستقل عن ديسكورد (تخزينه/
+// حذف القنوات ما يفقدنا السجل). سطر JSON واحد لكل حدث (JSON Lines) —
+// سهل البحث فيه بـ grep بدون أدوات إضافية.
+const AUDIT_FILE_PATH = process.env.AUDIT_LOG_FILE_PATH || '/var/log/enclave/audit.log';
+
+function appendAuditFile(entry) {
+  try {
+    fs.mkdirSync(path.dirname(AUDIT_FILE_PATH), { recursive: true });
+    fs.appendFileSync(AUDIT_FILE_PATH, `${JSON.stringify(entry)}\n`);
+  } catch (err) {
+    console.error(`   ❌ فشل الكتابة بملف السجل الدائم (${AUDIT_FILE_PATH}): ${err.message}`);
+  }
+}
 
 // LOG_CHANNEL_ID و LOG_DISABLE_TYPES اختياريان بملف .env — تخصيص لكل نشرة بدون
 // لمس config/logs.js المشترك بين كل النشرات (تغييره هنا يؤثر على Enclave أيضًا).
@@ -35,6 +52,20 @@ function resolveLogChannel(guild, key) {
 
 async function sendLog(guild, key, { title, description, fields = [], footer, thumbnail } = {}) {
   const cfg = logsConfig[key];
+
+  // الملف يُكتب دايمًا بغض النظر عن حالة القناة بديسكورد — هذا هو المصدر
+  // الدائم اللي المفروض ما يفوّت أي حدث.
+  appendAuditFile({
+    ts: new Date().toISOString(),
+    type: key,
+    guildId: guild.id,
+    guildName: guild.name,
+    title: title || null,
+    description: description || null,
+    fields: fields.map((f) => ({ name: f.name, value: f.value })),
+    footer: footer || null,
+  });
+
   const channel = resolveLogChannel(guild, key);
   if (!channel) return;
 
