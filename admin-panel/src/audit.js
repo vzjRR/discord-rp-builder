@@ -1,7 +1,23 @@
 // سجل النشاط — كل فعل يصير من المنصة ينسجل هنا (مين سواه، وش سوى، وامتى).
 // لا تسجّل هنا أي محتوى حساس (توكنات، أرقام سرية) — فقط وصف الفعل.
 
+const fs = require('fs');
+const path = require('path');
 const { db } = require('./db');
+
+// نفس الملف الدائم اللي يكتب فيه logs-bot (راجع logs-bot/lib/logs.js) — عشان
+// كل شيء يتغيّر أو يُضاف أو يُحذف، بديسكورد أو باللوحة، يطلع بمكان واحد على
+// القرص بدل ما يتوزّع بين قاعدة بيانات المنصة وملف البوت.
+const AUDIT_FILE_PATH = process.env.AUDIT_LOG_FILE_PATH || '/var/log/enclave/audit.log';
+
+function appendAuditFile(entry) {
+  try {
+    fs.mkdirSync(path.dirname(AUDIT_FILE_PATH), { recursive: true });
+    fs.appendFileSync(AUDIT_FILE_PATH, `${JSON.stringify(entry)}\n`);
+  } catch (err) {
+    console.error(`❌ فشل الكتابة بملف السجل الدائم (${AUDIT_FILE_PATH}): ${err.message}`);
+  }
+}
 
 function logAction(actor, action, detail = null) {
   try {
@@ -11,6 +27,15 @@ function logAction(actor, action, detail = null) {
   } catch (err) {
     console.error('❌ فشل تسجيل سجل النشاط:', err.message);
   }
+
+  appendAuditFile({
+    ts: new Date().toISOString(),
+    type: 'panel',
+    actorId: actor?.id ?? null,
+    actorName: actor?.name ?? 'النظام',
+    action,
+    detail,
+  });
 }
 
 function listActions({ page = 1, pageSize = 50 } = {}) {
