@@ -12,6 +12,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { register } = require('./lib/welcome');
 const activityTracker = require('./lib/activityTracker');
+const zeroTolerance = require('./lib/zeroTolerance');
 
 const token = process.env.DISCORD_TOKEN;
 const guildId = process.env.GUILD_ID;
@@ -35,6 +36,9 @@ const client = new Client({
 register(client);
 // تسجيل الانضمام والمغادرة والنشاط — مصدر بيانات صفحة حالة السيرفر بالمنصة
 activityTracker.register(client, guildId);
+// قناة صفر تسامح — راجع config/zeroTolerance.js. يحتاج البوت صلاحيتي
+// "Kick Members" و"Ban Members"، ورولٌ أعلى من كل من يُراد شمله بالميزة.
+zeroTolerance.register(client, guildId);
 
 client.once('ready', async () => {
   console.log(`✅ بوت الترحيب متصل كـ ${client.user.tag}`);
