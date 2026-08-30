@@ -31,7 +31,14 @@ function register(client) {
   // نقارن العدد القديم بالجديد لنعرف أي رابط استُخدم ومين صاحبه.
   let inviteCache = new Map(); // code -> uses
 
+  // WELCOME_CHANNEL_ID اختياري بـ .env — يستهدف قناة بمعرّفها بدل اسمها،
+  // بدون لمس config/welcome.js المشترك. لو فاضي، البحث بالاسم كالمعتاد.
   function findWelcomeChannel(guild) {
+    const channelId = process.env.WELCOME_CHANNEL_ID;
+    if (channelId) {
+      const channel = guild.channels.cache.get(channelId);
+      return channel && channel.isTextBased() ? channel : null;
+    }
     return guild.channels.cache.find((c) => c.name === cfg.channelName && c.isTextBased());
   }
 
@@ -111,7 +118,10 @@ function register(client) {
       const guild = member.guild;
       const channel = findWelcomeChannel(guild);
       if (!channel) {
-        console.warn(`⚠️  ما لقيت قناة الترحيب "${cfg.channelName}" — تأكد من الاسم بـ config/welcome.js`);
+        const label = process.env.WELCOME_CHANNEL_ID
+          ? `id ${process.env.WELCOME_CHANNEL_ID}`
+          : `"${cfg.channelName}"`;
+        console.warn(`⚠️  ما لقيت قناة الترحيب (${label}) — تأكد من WELCOME_CHANNEL_ID أو الاسم بـ config/welcome.js`);
         return;
       }
 

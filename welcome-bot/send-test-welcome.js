@@ -54,8 +54,13 @@ function avatarUrl(user) {
   const guild = await api(`/guilds/${guildId}?with_counts=true`);
   const channels = await api(`/guilds/${guildId}/channels`);
 
-  const channel = channels.find((c) => c.name === cfg.channelName);
-  if (!channel) throw new Error(`ما لقيت قناة الترحيب "${cfg.channelName}"`);
+  const channel = process.env.WELCOME_CHANNEL_ID
+    ? channels.find((c) => c.id === process.env.WELCOME_CHANNEL_ID)
+    : channels.find((c) => c.name === cfg.channelName);
+  if (!channel) {
+    const label = process.env.WELCOME_CHANNEL_ID ? `id ${process.env.WELCOME_CHANNEL_ID}` : `"${cfg.channelName}"`;
+    throw new Error(`ما لقيت قناة الترحيب (${label})`);
+  }
   const rulesChannel = channels.find((c) => c.name === cfg.rulesChannelName);
 
   let nickname = null;

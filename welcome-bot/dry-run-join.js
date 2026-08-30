@@ -81,14 +81,19 @@ const rule = () => line('─'.repeat(64));
   const channels = await api(`/guilds/${guildId}/channels`);
   const roles = await api(`/guilds/${guildId}/roles`);
 
-  const welcomeChannel = channels.find((c) => c.name === cfg.channelName);
+  const welcomeChannel = process.env.WELCOME_CHANNEL_ID
+    ? channels.find((c) => c.id === process.env.WELCOME_CHANNEL_ID)
+    : channels.find((c) => c.name === cfg.channelName);
   const rulesChannel = channels.find((c) => c.name === cfg.rulesChannelName);
   const ticketChannel = cfg.ticketChannelName
     ? channels.find((c) => c.name === cfg.ticketChannelName)
     : null;
   const autoRole = cfg.autoAssignRole ? roles.find((r) => r.name === cfg.autoAssignRole) : null;
 
-  line(`   ${welcomeChannel ? '✅' : '❌'} قناة الترحيب  "${cfg.channelName}"`);
+  const welcomeChannelLabel = process.env.WELCOME_CHANNEL_ID
+    ? `id ${process.env.WELCOME_CHANNEL_ID}`
+    : `"${cfg.channelName}"`;
+  line(`   ${welcomeChannel ? '✅' : '❌'} قناة الترحيب  ${welcomeChannelLabel}`);
   line(`   ${rulesChannel ? '✅' : '⚠️ '} قناة القوانين "${cfg.rulesChannelName}"`);
   if (cfg.ticketChannelName) {
     line(`   ${ticketChannel ? '✅' : '⚠️ '} قناة التذاكر  "${cfg.ticketChannelName}"`);
@@ -121,7 +126,7 @@ const rule = () => line('─'.repeat(64));
     inviter: '<@…>  (يتحدد وقت الدخول الحقيقي حسب رابط الدعوة)',
   });
 
-  line(`💬 الرسالة اللي بتنرسل بقناة "${cfg.channelName}":`);
+  line(`💬 الرسالة اللي بتنرسل بقناة ${welcomeChannelLabel}:`);
   line();
   line(fillTemplate(cfg.contentTemplate, vars));
   line();
