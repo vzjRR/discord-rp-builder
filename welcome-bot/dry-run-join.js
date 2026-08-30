@@ -84,19 +84,25 @@ const rule = () => line('─'.repeat(64));
   const welcomeChannel = process.env.WELCOME_CHANNEL_ID
     ? channels.find((c) => c.id === process.env.WELCOME_CHANNEL_ID)
     : channels.find((c) => c.name === cfg.channelName);
-  const rulesChannel = channels.find((c) => c.name === cfg.rulesChannelName);
-  const ticketChannel = cfg.ticketChannelName
-    ? channels.find((c) => c.name === cfg.ticketChannelName)
-    : null;
+  const rulesChannel = process.env.RULES_CHANNEL_ID
+    ? channels.find((c) => c.id === process.env.RULES_CHANNEL_ID)
+    : channels.find((c) => c.name === cfg.rulesChannelName);
+  const ticketChannel = process.env.TICKET_CHANNEL_ID
+    ? channels.find((c) => c.id === process.env.TICKET_CHANNEL_ID)
+    : cfg.ticketChannelName
+      ? channels.find((c) => c.name === cfg.ticketChannelName)
+      : null;
   const autoRole = cfg.autoAssignRole ? roles.find((r) => r.name === cfg.autoAssignRole) : null;
 
   const welcomeChannelLabel = process.env.WELCOME_CHANNEL_ID
     ? `id ${process.env.WELCOME_CHANNEL_ID}`
     : `"${cfg.channelName}"`;
+  const rulesChannelLabel = process.env.RULES_CHANNEL_ID ? `id ${process.env.RULES_CHANNEL_ID}` : `"${cfg.rulesChannelName}"`;
+  const ticketChannelLabel = process.env.TICKET_CHANNEL_ID ? `id ${process.env.TICKET_CHANNEL_ID}` : `"${cfg.ticketChannelName}"`;
   line(`   ${welcomeChannel ? '✅' : '❌'} قناة الترحيب  ${welcomeChannelLabel}`);
-  line(`   ${rulesChannel ? '✅' : '⚠️ '} قناة القوانين "${cfg.rulesChannelName}"`);
-  if (cfg.ticketChannelName) {
-    line(`   ${ticketChannel ? '✅' : '⚠️ '} قناة التذاكر  "${cfg.ticketChannelName}"`);
+  line(`   ${rulesChannel ? '✅' : '⚠️ '} قناة القوانين ${rulesChannelLabel}`);
+  if (cfg.ticketChannelName || process.env.TICKET_CHANNEL_ID) {
+    line(`   ${ticketChannel ? '✅' : '⚠️ '} قناة التذاكر  ${ticketChannelLabel}`);
   }
   if (cfg.autoAssignRole) line(`   ${autoRole ? '✅' : '❌'} الرول التلقائي "${cfg.autoAssignRole}"`);
   rule();

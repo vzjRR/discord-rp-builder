@@ -125,12 +125,23 @@ function register(client) {
         return;
       }
 
-      const rulesChannel = guild.channels.cache.find((c) => c.name === cfg.rulesChannelName);
-      const ticketChannel = cfg.ticketChannelName
-        ? guild.channels.cache.find((c) => c.name === cfg.ticketChannelName)
-        : null;
-      if (cfg.ticketChannelName && !ticketChannel) {
-        console.warn(`⚠️  ما لقيت قناة التذاكر "${cfg.ticketChannelName}" — رابط التذكرة بيطلع ناقص بالـ DM`);
+      // RULES_CHANNEL_ID و TICKET_CHANNEL_ID اختياريان بـ .env — نفس فكرة
+      // WELCOME_CHANNEL_ID أعلاه: يستهدفان قناة بمعرّفها بدل اسمها.
+      const rulesChannel = process.env.RULES_CHANNEL_ID
+        ? guild.channels.cache.get(process.env.RULES_CHANNEL_ID)
+        : guild.channels.cache.find((c) => c.name === cfg.rulesChannelName);
+      const ticketChannel = process.env.TICKET_CHANNEL_ID
+        ? guild.channels.cache.get(process.env.TICKET_CHANNEL_ID)
+        : cfg.ticketChannelName
+          ? guild.channels.cache.find((c) => c.name === cfg.ticketChannelName)
+          : null;
+      if (!rulesChannel) {
+        const label = process.env.RULES_CHANNEL_ID ? `id ${process.env.RULES_CHANNEL_ID}` : `"${cfg.rulesChannelName}"`;
+        console.warn(`⚠️  ما لقيت قناة القوانين (${label}) — رابطها بيطلع ناقص بالـ DM`);
+      }
+      if ((process.env.TICKET_CHANNEL_ID || cfg.ticketChannelName) && !ticketChannel) {
+        const label = process.env.TICKET_CHANNEL_ID ? `id ${process.env.TICKET_CHANNEL_ID}` : `"${cfg.ticketChannelName}"`;
+        console.warn(`⚠️  ما لقيت قناة التذاكر (${label}) — رابط التذكرة بيطلع ناقص بالـ DM`);
       }
       const inviter = await findInviter(guild);
 

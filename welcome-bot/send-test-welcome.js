@@ -61,7 +61,9 @@ function avatarUrl(user) {
     const label = process.env.WELCOME_CHANNEL_ID ? `id ${process.env.WELCOME_CHANNEL_ID}` : `"${cfg.channelName}"`;
     throw new Error(`ما لقيت قناة الترحيب (${label})`);
   }
-  const rulesChannel = channels.find((c) => c.name === cfg.rulesChannelName);
+  const rulesChannel = process.env.RULES_CHANNEL_ID
+    ? channels.find((c) => c.id === process.env.RULES_CHANNEL_ID)
+    : channels.find((c) => c.name === cfg.rulesChannelName);
 
   let nickname = null;
   try {
