@@ -40,11 +40,21 @@ end
 -- ═══════════════════════════════════════════════════════════════
 
 ---Build the job table in the shape the detected framework expects.
+---
+---The two frameworks key their grades differently, and getting it wrong is not
+---cosmetic. qb-core's paycheck loop looks a grade up as
+---    jobData['grades'][tostring(player.job.grade.level)]
+---so a numerically keyed table yields nil there, the payment falls through to
+---nil, and qb-core then errors comparing nil with a number on every payday.
+---qbx_core uses numeric keys. So: strings for qb-core, numbers for qbx_core.
+---@param stringKeys boolean
 ---@return table
-local function buildJob()
+local function buildJob(stringKeys)
     local grades = {}
+
     for _, entry in ipairs(Permissions.ordered()) do
-        grades[entry.level] = {
+        local key = stringKeys and tostring(entry.level) or entry.level
+        grades[key] = {
             name = Permissions.gradeLabel(entry.level, 'en'),
             label = Permissions.gradeLabel(entry.level, 'en'),
             payment = entry.def.pay,
@@ -66,9 +76,8 @@ end
 function MN.installer.job()
     if not Config.AutoInstall.job then return false end
 
-    local job = buildJob()
-
     if MN.framework == MN.FW.QBX then
+        local job = buildJob(false)   -- qbx_core: numeric grade keys
         local ok, err = pcall(function()
             return exports.qbx_core:CreateJobs({ [Permissions.job] = job })
         end)
@@ -80,11 +89,13 @@ function MN.installer.job()
         return false
 
     elseif MN.framework == MN.FW.QB then
+        local job = buildJob(true)    -- qb-core: string grade keys
         local ok, err = pcall(function()
             return exports['qb-core']:AddJobs({ [Permissions.job] = job })
         end)
         if ok then
-            note('job "%s" registered with qb-core (%s grades)', Permissions.job, MN.count(job.grades))
+            note('job "%s" registered with qb-core (%s grades, string keys)',
+                Permissions.job, MN.count(job.grades))
             return true
         end
         MN.warn('qb-core job registration failed: %s', tostring(err))

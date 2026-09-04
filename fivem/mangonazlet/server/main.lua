@@ -158,6 +158,58 @@ end)
 -- Admin commands
 -- ═══════════════════════════════════════════════════════════════
 
+---Permission check we own, rather than FiveM's `restricted` flag.
+---
+---A restricted command is hidden entirely from players without the ace, which
+---reports "No such command" and tells them nothing. /mn:place also has to be
+---run in game while standing where the thing should go, so it cannot be moved
+---to the console the way /mn:setjob can. Checking here lets the command stay
+---visible and explain exactly what is missing.
+---@param src number              0 is the server console
+---@param allowShopOwner boolean  also accept the shop's own Owner grade
+---@return boolean
+local function canAdminister(src, allowShopOwner)
+    if src == 0 then return true end                                  -- console
+    if IsPlayerAceAllowed(src, Config.Server.adminAce) then return true end
+
+    if allowShopOwner then
+        local player = MN.getPlayer(src)
+        if player and player.job.name == Permissions.job
+            and Permissions.isOwner(player.job.grade) then
+            return true
+        end
+    end
+    return false
+end
+
+---Explain the refusal, and hand over the exact line that fixes it.
+---@param src number
+---@param allowShopOwner boolean
+local function explainDenied(src, allowShopOwner)
+    local identifier = MN.identifier(src) or 'your identifier'
+
+    TriggerClientEvent('chat:addMessage', src, {
+        color = { 231, 76, 60 }, multiline = true,
+        args = { 'MangoNazlet', ('You need the "%s" permission for this.'):format(Config.Server.adminAce) },
+    })
+    TriggerClientEvent('chat:addMessage', src, {
+        color = { 245, 166, 35 }, multiline = true,
+        args = { 'MangoNazlet', ('Add this to server.cfg and restart:  add_principal %s %s')
+            :format(identifier, Config.Server.adminAce) },
+    })
+
+    if allowShopOwner then
+        TriggerClientEvent('chat:addMessage', src, {
+            color = { 245, 166, 35 }, multiline = true,
+            args = { 'MangoNazlet', 'Or become the shop Owner: run  mn:setjob <id> 5  in the server console.' },
+        })
+    end
+
+    MN.print('%s (%s) was refused an admin command. To grant it, add to server.cfg:',
+        GetPlayerName(src) or '?', tostring(src))
+    MN.print('   add_principal %s %s', identifier, Config.Server.adminAce)
+end
+
 local function registerCommands()
     lib.addCommand('mn:setjob', {
         help = 'Put a player on the MangoNazlet payroll',
@@ -165,8 +217,12 @@ local function registerCommands()
             { name = 'id', type = 'playerId', help = 'Player server id' },
             { name = 'grade', type = 'number', help = ('Grade 0-%s'):format(Permissions.maxGrade()) },
         },
-        restricted = Config.Server.adminAce,
     }, function(source, args)
+        if not canAdminister(source, false) then
+            explainDenied(source, false)
+            return
+        end
+
         local grade = MN.int(args.grade, 0, Permissions.maxGrade())
         if not grade then
             MN.notify(source, 'error_generic', 'error')
@@ -192,8 +248,19 @@ local function registerCommands()
             { name = 'anchor', type = 'string',
               help = 'anchor name, "list", or "reset"' },
         },
-        restricted = Config.Server.adminAce,
     }, function(source, args)
+        -- The shop's Owner may reposition their own shop; only an admin can
+        -- make someone an Owner in the first place.
+        if not canAdminister(source, true) then
+            explainDenied(source, true)
+            return
+        end
+
+        if source == 0 then
+            MN.print('/mn:place has to be run in game - it saves where you are standing.')
+            return
+        end
+
         local anchor = tostring(args.anchor or ''):lower()
 
         if anchor == 'list' or anchor == '' then

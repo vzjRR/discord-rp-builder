@@ -45,6 +45,16 @@ function MN.removeItem(_, item, count)
 end
 
 MN.crafting = MN.crafting or {}
+
+-- The installer's job builder, so the grade-key contract is covered too.
+local buildJob
+do
+    local source = assert(io.open('server/installer.lua')):read('a')
+    local body = source:match('(local function buildJob.-\nend)\n')
+    assert(body, 'could not extract buildJob')
+    buildJob = load(body .. '\nreturn buildJob')()
+end
+
 extract('server/inventory.lua', '(function MN%.crafting%.check.-\nend)\n')
 extract('server/inventory.lua', '(function MN%.crafting%.consume.-\n    return true\nend)\n')
 extract('server/inventory.lua', '(function MN%.crafting%.freshness.-\n    return math%.max.-\nend)\n')
@@ -392,6 +402,71 @@ Locations.applyOverrides('not a table')
 check('a malformed override is ignored safely', true)
 
 Locations.shop.freezer.coords = vec3(originalX, 0, 0)
+
+-- ═══════════════════════════════════════════════════════════════
+group('framework job registration')
+-- ═══════════════════════════════════════════════════════════════
+
+-- qb-core's PaycheckInterval resolves a grade as
+--     jobData['grades'][tostring(player.job.grade.level)]
+-- and then compares the payment with 0. A numerically keyed grades table
+-- returns nil there, which crashed qb-core on every payday with
+--     attempt to compare number with nil
+-- These assertions pin the key style per framework so that cannot come back.
+local function qbLookupFails(job, level)
+    local gradeData = job['grades'][tostring(level)]
+    local payment = gradeData and gradeData.payment
+    return payment == nil
+end
+
+local qbJob  = buildJob(true)
+local qbxJob = buildJob(false)
+
+check('qb-core grades use string keys', (function()
+    for key in pairs(qbJob.grades) do
+        if type(key) ~= 'string' then return false end
+    end
+    return true
+end)())
+
+check('qbx_core grades use numeric keys', (function()
+    for key in pairs(qbxJob.grades) do
+        if type(key) ~= 'number' then return false end
+    end
+    return true
+end)())
+
+check('every grade resolves through qb-core\'s paycheck lookup', (function()
+    for level = 0, Permissions.maxGrade() do
+        if qbLookupFails(qbJob, level) then return false end
+    end
+    return true
+end)())
+
+check('numeric keys would break that lookup (the bug this pins)',
+    qbLookupFails(qbxJob, 0))
+
+check('both builds carry every configured grade', (function()
+    local a, b = 0, 0
+    for _ in pairs(qbJob.grades) do a = a + 1 end
+    for _ in pairs(qbxJob.grades) do b = b + 1 end
+    return a == b and a == #Permissions.ordered()
+end)())
+
+check('every registered grade has a positive payment', (function()
+    for _, grade in pairs(qbJob.grades) do
+        if type(grade.payment) ~= 'number' or grade.payment <= 0 then return false end
+    end
+    return true
+end)())
+
+check('only the owner grade is flagged isboss', (function()
+    local bosses = 0
+    for _, grade in pairs(qbJob.grades) do
+        if grade.isboss then bosses = bosses + 1 end
+    end
+    return bosses == 1
+end)())
 
 -- ═══════════════════════════════════════════════════════════════
 print(('\n%s\n  %d passed, %d failed\n'):format(string.rep('─', 46), pass, fail))
