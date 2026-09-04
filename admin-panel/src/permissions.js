@@ -20,6 +20,8 @@ const ALL = {
   'templates.manage': 'تعديل الرسائل الثابتة',
   'logs.view': 'الاطّلاع على سجل النشاط',
   'status.view': 'عرض حالة السيرفر',
+  'points.view': 'عرض نقاط الصور (لوحة الصدارة والسجل)',
+  'points.manage': 'تعديل نقاط الصور يدويًا (إضافة/خصم/تصفير) وإعادة مسح الأرشيف',
 };
 
 const KEYS = Object.keys(ALL);

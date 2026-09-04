@@ -1,0 +1,20 @@
+{
+  "name": "enclave-points-bot",
+  "version": "1.0.0",
+  "description": "بوت مستقل: يحتسب نقطة واحدة تلقائيًا لكل رسالة فيها صورة بقناة محددة — لا أوامر، القراءة والإدارة من admin-panel فقط",
+  "main": "bot.js",
+  "type": "commonjs",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "luxon": "^3.5.0"
+  }
+}

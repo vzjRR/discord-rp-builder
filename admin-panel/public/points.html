@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نقاط الصور — Enclave Admin</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#08050c">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand"><img src="/icons/icon-192.png" alt=""><span>Enclave Admin</span></div>
+    <a class="nav-link" href="/">الرئيسية</a>
+    <a class="nav-link" href="/messages">الرسائل والإعلانات</a>
+    <a class="nav-link" href="/moderation">الإشراف</a>
+    <a class="nav-link" href="/server">إدارة السيرفر</a>
+    <a class="nav-link" href="/status">حالة السيرفر</a>
+    <a class="nav-link" href="/points">نقاط الصور</a>
+    <a class="nav-link" href="/templates">الرسائل الثابتة</a>
+    <a class="nav-link" href="/logs">سجل النشاط</a>
+    <a class="nav-link" href="/admins">إدارة الحسابات</a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>نقاط الصور</h1>
+    <p class="subtitle">
+      نقطة واحدة تلقائيًا لكل رسالة فيها صورة بالقناة المخصّصة — لا أوامر ديسكورد
+      لهذا الموضوع إطلاقًا، كل ما تراه هنا يُحتسب من بوت points-bot وحده.
+    </p>
+
+    <div class="card" id="unavailableCard" style="display:none">
+      <p class="subtitle" style="margin:0" id="unavailableText"></p>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-scope="alltime">الكل</button>
+        <button class="tab-btn" data-scope="monthly">هذا الشهر</button>
+        <button class="tab-btn" data-scope="weekly">هذا الأسبوع</button>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>العضو</th><th>النقاط</th><th>الصور</th></tr></thead>
+        <tbody id="leaderboardBody"><tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+      <button class="btn small ghost" id="refreshLeaderboard">تحديث الآن</button>
+    </div>
+
+    <div class="card" id="manageCard" style="display:none">
+      <h2>تعديل يدوي</h2>
+      <p class="subtitle">إضافة أو خصم نقاط لعضو، أو تصفير رصيده بالكامل. يُسجَّل كل تعديل في سجل النشاط.</p>
+      <label>العضو</label>
+      <div id="adjustPicker"></div>
+      <label>عدد النقاط (رقم موجب للإضافة، سالب للخصم)</label>
+      <input type="number" id="adjustDelta" placeholder="مثال: 5 أو -3-" step="1">
+      <label>السبب (اختياري)</label>
+      <input type="text" id="adjustReason" placeholder="مثال: تعويض عن خطأ تقني">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn small" id="adjustApply">تطبيق التعديل</button>
+        <button class="btn small danger" id="adjustReset">تصفير رصيد العضو</button>
+      </div>
+      <div class="msg" id="adjustMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>آخر العمليات</h2>
+      <table>
+        <thead><tr><th>الوقت</th><th>النوع</th><th>العضو</th><th>التغيير</th><th>التفاصيل</th></tr></thead>
+        <tbody id="auditBody"><tr><td colspan="5" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <a href="https://www.tsh87.com" target="_blank" rel="noopener"><b>vzjRR</b></a></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/memberPicker.js"></script>
+<script>
+  const nf = new Intl.NumberFormat('ar-SA');
+  let scope = 'alltime';
+
+  const ACTION_LABELS = {
+    IMAGE_COUNTED: 'صورة محتسبة',
+    MESSAGE_EDIT_ADJUSTED: 'تعديل رسالة',
+    MESSAGE_DELETE_ADJUSTED: 'حذف رسالة',
+    MANUAL_ADJUSTMENT: 'تعديل يدوي',
+    WEEKLY_ROLLOVER: 'تجديد أسبوعي',
+    MONTHLY_ROLLOVER: 'تجديد شهري',
+    ERROR: 'خطأ',
+  };
+
+  function fmtDelta(n) {
+    if (n === null || n === undefined) return '—';
+    const color = n > 0 ? 'var(--success)' : n < 0 ? 'var(--danger)' : 'inherit';
+    const sign = n > 0 ? '+' : '';
+    return `<span style="color:${color}">${sign}${nf.format(n)}</span>`;
+  }
+
+  async function loadLeaderboard() {
+    const body = document.getElementById('leaderboardBody');
+    body.innerHTML = '<tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr>';
+    try {
+      const data = await api('GET', `/api/points/leaderboard?scope=${scope}`);
+      document.getElementById('unavailableCard').style.display = 'none';
+      if (!data.entries.length) {
+        body.innerHTML = '<tr><td colspan="4" class="subtitle">لا يوجد أي نقاط مسجّلة بعد</td></tr>';
+        return;
+      }
+      body.innerHTML = data.entries.map((e) => `
+        <tr>
+          <td class="subtitle" style="width:36px">${nf.format(e.rank)}</td>
+          <td>${escapeHtml(e.displayName || e.username)}<div class="subtitle">@${escapeHtml(e.username)}</div></td>
+          <td>${nf.format(e.points)}</td>
+          <td>${nf.format(e.images)}</td>
+        </tr>`).join('');
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+      if (err.message.includes('points-bot')) {
+        document.getElementById('unavailableCard').style.display = 'block';
+        document.getElementById('unavailableText').textContent = err.message;
+      }
+    }
+  }
+
+  async function loadAudit() {
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '<tr><td colspan="5" class="subtitle">جارٍ التحميل…</td></tr>';
+    try {
+      const data = await api('GET', '/api/points/audit?pageSize=50');
+      if (!data.rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="subtitle">لا يوجد أي نشاط بعد</td></tr>';
+        return;
+      }
+      body.innerHTML = data.rows.map((r) => {
+        let details = '';
+        try { details = r.details ? JSON.stringify(JSON.parse(r.details)) : ''; } catch { details = r.details || ''; }
+        return `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleString('ar-SA')}</td>
+          <td><span class="badge">${ACTION_LABELS[r.action_type] || escapeHtml(r.action_type)}</span></td>
+          <td class="subtitle">${escapeHtml(r.user_id || '—')}</td>
+          <td>${fmtDelta(r.points_delta)}</td>
+          <td class="subtitle">${escapeHtml(details)}</td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="5" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      scope = btn.dataset.scope;
+      loadLeaderboard();
+    });
+  });
+  document.getElementById('refreshLeaderboard').addEventListener('click', () => { loadLeaderboard(); loadAudit(); });
+
+  // بطاقة التعديل اليدوي: صلاحية points.manage وحدها — الخادم يمنعها أيضًا،
+  // وهذا إخفاء للواجهة فقط.
+  (async () => {
+    try {
+      const { admin } = await api('GET', '/api/me');
+      const held = admin.isOwner || (admin.permissions || []).includes('points.manage');
+      if (held) document.getElementById('manageCard').style.display = 'block';
+    } catch { /* تجاهل */ }
+  })();
+
+  let selectedUsername = null;
+  const adjustPicker = createMemberPicker({
+    mount: document.getElementById('adjustPicker'),
+    mode: 'members',
+    onSelect: (m) => {
+      const match = /^(?:(.+) \(@(.+)\)|@(.+))$/.exec(m.label);
+      selectedUsername = match ? (match[2] || match[3]) : m.label;
+    },
+  });
+
+  async function runAdjust(kind) {
+    const msgEl = document.getElementById('adjustMsg');
+    const userId = adjustPicker.getId();
+    if (!userId) return showMsg(msgEl, 'اختر العضو أولًا', false);
+
+    if (kind === 'reset' && !confirm('سيُصفَّر رصيد هذا العضو بالكامل (إجمالي/أسبوعي/شهري). هل أنت متأكد؟')) return;
+
+    const displayName = document.getElementById('adjustPicker').querySelector('.mp-input')?.value || userId;
+    const btnId = kind === 'reset' ? 'adjustReset' : 'adjustApply';
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    try {
+      if (kind === 'reset') {
+        await api('POST', '/api/points/reset', { userId, displayName });
+        showMsg(msgEl, 'تم تصفير رصيد العضو.', true);
+      } else {
+        const delta = Number(document.getElementById('adjustDelta').value);
+        if (!Number.isInteger(delta) || delta === 0) {
+          return showMsg(msgEl, 'أدخل عدد نقاط صحيح مختلف عن صفر', false);
+        }
+        const reason = document.getElementById('adjustReason').value.trim();
+        await api('POST', '/api/points/adjust', {
+          userId,
+          username: selectedUsername || userId,
+          displayName,
+          delta,
+          reason,
+        });
+        showMsg(msgEl, 'تم تطبيق التعديل.', true);
+        document.getElementById('adjustDelta').value = '';
+        document.getElementById('adjustReason').value = '';
+      }
+      loadLeaderboard();
+      loadAudit();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('adjustApply').addEventListener('click', () => runAdjust('adjust'));
+  document.getElementById('adjustReset').addEventListener('click', () => runAdjust('reset'));
+
+  loadLeaderboard();
+  loadAudit();
+</script>
+</body>
+</html>

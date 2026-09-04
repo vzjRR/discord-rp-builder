@@ -56,4 +56,4 @@ function clearActions(actor) {
   return count;
 }
 
-module.exports = { logAction, listActions, clearActions };
+module.exports = { logAction, listActions, clearActions, appendAuditFile };

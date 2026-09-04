@@ -9,7 +9,9 @@
 ```
 discord-rp-builder/         ← أدوات بناء السيرفر (تشتغل مرة وتطلع، مو بوت دائم): build.js, organization.js, export.js
 ├── logs-bot/                ← مشروع Node مستقل، package.json خاص فيه — لوقات security-logs + أوامر رولات
-└── welcome-bot/              ← مشروع Node مستقل، package.json خاص فيه — رسالة الترحيب للأعضاء الجدد
+├── welcome-bot/              ← مشروع Node مستقل، package.json خاص فيه — رسالة الترحيب للأعضاء الجدد
+├── points-bot/               ← مشروع Node مستقل، package.json خاص فيه — نقاط الصور التلقائية (بلا أي أوامر، راجع points-bot/README.md)
+└── admin-panel/              ← منصة الإدارة (Express) — لوحة صدارة نقاط الصور جزء منها بصفحة /points
 ```
 
 كل مجلد فيه `package.json` و `.env.example` خاص فيه — `npm install` و `npm start` تسويها **داخل كل مجلد لحاله**،
@@ -369,6 +371,21 @@ npm run deploy-commands
 
 سوّي خدمة Railway جديدة بنفس المستودع، وحطّ **Root Directory** = `logs-bot`. حط نفس `DISCORD_TOKEN` و `GUILD_ID`
 بمتغيرات البيئة الخاصة بهالخدمة. هذي الخدمة تُبنى وتُعاد تشغيلها بشكل مستقل تمامًا عن welcome-bot.
+
+---
+
+## 6.7) بوت نقاط الصور (Points Bot)
+
+مشروع مستقل بمجلد `points-bot/` — له `package.json` خاص فيه، وله تطبيق ديسكورد
+منفصل تمامًا عن الثلاثة أعلاه (نفس تطبيق `EN-Censorship`، لا يشارك `DISCORD_TOKEN`
+مع `build.js`/`logs-bot`/`welcome-bot`). يراقب قناة واحدة محددة ويحتسب نقطة تلقائية
+لكل رسالة فيها صورة — **بلا أي أمر ديسكورد إطلاقًا**، لا slash ولا نصي. كل القراءة
+والتعديل اليدوي تتم من `admin-panel` (صفحة "نقاط الصور"، صلاحيتا `points.view`
+و`points.manage` يمنحهما المالك من صفحة "إدارة الحسابات").
+
+التفاصيل الكاملة (القاعدة الحسابية، متغيرات البيئة، تشغيل محلي) بـ
+[`points-bot/README.md`](points-bot/README.md)، والنشر على السيرفر بـ
+[`deploy/points-bot/EXISTING-SERVER.md`](deploy/points-bot/EXISTING-SERVER.md).
 
 ---
 
