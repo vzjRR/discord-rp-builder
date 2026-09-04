@@ -469,5 +469,47 @@ check('only the owner grade is flagged isboss', (function()
 end)())
 
 -- ═══════════════════════════════════════════════════════════════
+group('command declarations')
+-- ═══════════════════════════════════════════════════════════════
+
+-- ox_lib rejects a command before the handler runs when a declared parameter
+-- is missing and not marked optional:
+--     command 'mn:place' received an invalid string for argument 1 (anchor)
+-- Both commands answer a bare call usefully, so every parameter has to be
+-- optional and the handler has to do the validating.
+local commandSource = assert(io.open('server/main.lua')):read('a')
+
+check('every declared command parameter is optional', (function()
+    for block in commandSource:gmatch('params%s*=%s*{(.-)\n%s*},') do
+        for param in block:gmatch('{%s*name%s*=.-}') do
+            if not param:find('optional%s*=%s*true') then
+                print(('        not optional: %s'):format(param:gsub('%s+', ' ')))
+                return false
+            end
+        end
+    end
+    return true
+end)())
+
+check('no command relies on ox_lib restricted', (function()
+    return not commandSource:find('restricted%s*=')
+end)())
+
+check('/mn:place handles being called with no anchor',
+    commandSource:find("anchor == 'list' or anchor == ''") ~= nil)
+
+check('/mn:setjob answers a bare call with usage',
+    commandSource:find('usage: mn:setjob') ~= nil)
+
+check('both commands check permission themselves', (function()
+    local _, count = commandSource:gsub('canAdminister%(', '')
+    return count >= 3   -- one definition, two call sites
+end)())
+
+check('/mn:place refuses to run from the console', (function()
+    return commandSource:find('has to be run in game') ~= nil
+end)())
+
+-- ═══════════════════════════════════════════════════════════════
 print(('\n%s\n  %d passed, %d failed\n'):format(string.rep('─', 46), pass, fail))
 os.exit(fail == 0 and 0 or 1)

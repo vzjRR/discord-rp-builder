@@ -214,8 +214,11 @@ local function registerCommands()
     lib.addCommand('mn:setjob', {
         help = 'Put a player on the MangoNazlet payroll',
         params = {
-            { name = 'id', type = 'playerId', help = 'Player server id' },
-            { name = 'grade', type = 'number', help = ('Grade 0-%s'):format(Permissions.maxGrade()) },
+            -- Optional so ox_lib hands us the call instead of rejecting it, and
+            -- we can answer a bare /mn:setjob with usage rather than a parser error.
+            { name = 'id', type = 'playerId', help = 'Player server id', optional = true },
+            { name = 'grade', type = 'number', optional = true,
+              help = ('Grade 0-%s'):format(Permissions.maxGrade()) },
         },
     }, function(source, args)
         if not canAdminister(source, false) then
@@ -224,8 +227,23 @@ local function registerCommands()
         end
 
         local grade = MN.int(args.grade, 0, Permissions.maxGrade())
-        if not grade then
-            MN.notify(source, 'error_generic', 'error')
+
+        if not args.id or not grade then
+            local usage = ('usage: mn:setjob <player id> <grade 0-%s>'):format(Permissions.maxGrade())
+            local grades = {}
+            for _, entry in ipairs(Permissions.ordered()) do
+                grades[#grades + 1] = ('%d = %s'):format(entry.level, Permissions.gradeLabel(entry.level, 'en'))
+            end
+
+            if source == 0 then
+                MN.print('%s', usage)
+                MN.print('   %s', table.concat(grades, '  |  '))
+            else
+                TriggerClientEvent('chat:addMessage', source, {
+                    color = { 245, 166, 35 }, multiline = true,
+                    args = { 'MangoNazlet', usage .. '\n' .. table.concat(grades, '  |  ') },
+                })
+            end
             return
         end
 
@@ -245,8 +263,10 @@ local function registerCommands()
     lib.addCommand('mn:place', {
         help = 'Move part of the shop to where you stand (saved to the database)',
         params = {
-            { name = 'anchor', type = 'string',
-              help = 'anchor name, "list", or "reset"' },
+            -- Optional: a bare /mn:place should list the anchors, which it
+            -- cannot do if ox_lib rejects the call for a missing argument.
+            { name = 'anchor', type = 'string', optional = true,
+              help = 'anchor name, "list", or "reset" - omit to list' },
         },
     }, function(source, args)
         -- The shop's Owner may reposition their own shop; only an admin can
