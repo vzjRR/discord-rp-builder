@@ -24,9 +24,12 @@ payroll comes out of the balance.
 
 ### Install
 
-```
-resources/[jobs]/mangonazlet/
-```
+**Windows:** copy `release/MangoNazlet/` to the server machine and double-click
+`Install-MangoNazlet.bat`. It audits the server, copies the resource in and
+edits `server.cfg` for you. Then restart.
+
+**Manually, anywhere:** copy the resource to `resources/[jobs]/mangonazlet/` and
+add to `server.cfg` — `ox_lib` must come first:
 
 ```cfg
 ensure oxmysql
