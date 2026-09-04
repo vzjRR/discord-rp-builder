@@ -68,13 +68,17 @@ Run from PowerShell if your server is somewhere else, or to preview first:
 .\Install-MangoNazlet.ps1 -ResourcesFolder "[standalone]"
 ```
 
-### If it stops
+### If ox_lib is missing
 
-The installer refuses to continue in only one case: **`ox_lib` is missing.**
-It is the one hard requirement. Get it from
-<https://github.com/overextended/ox_lib/releases>, extract to
-`C:\FiveMServer\resources\ox_lib`, and run the installer again. Nothing is
-changed when it stops.
+It is the one hard requirement. The installer **offers to download and install
+it for you** — press Enter and it fetches the latest official release and puts
+it in place.
+
+To install it without being asked: `.\Install-MangoNazlet.ps1 -InstallOxLib`
+To handle it yourself: `.\Install-MangoNazlet.ps1 -SkipOxLib`, then get it from
+<https://github.com/overextended/ox_lib/releases> and extract into `resources`.
+
+If you decline, the installer stops without changing anything.
 
 Warnings (as opposed to that stop) never block the install:
 

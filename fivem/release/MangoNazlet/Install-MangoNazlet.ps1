@@ -30,7 +30,14 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string] $ServerPath      = 'C:\FiveMServer',
-    [string] $ResourcesFolder = '[jobs]'
+    [string] $ResourcesFolder = '[jobs]',
+
+    # Install ox_lib without asking. Without this the installer offers to do
+    # it and waits for an answer.
+    [switch] $InstallOxLib,
+
+    # Never install ox_lib; just report it missing and stop.
+    [switch] $SkipOxLib
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,6 +94,66 @@ function Invoke-RoboCopy([string] $from, [string] $to, [switch] $Mirror) {
     $null = & robocopy.exe @roboArgs
     if ($LASTEXITCODE -ge 8) {
         throw "robocopy failed copying '$from' to '$to' (exit code $LASTEXITCODE)"
+    }
+}
+
+# Fetch and unpack a zip from a URL into a folder.
+function Expand-RemoteZip([string] $url, [string] $destination) {
+    [Net.ServicePointManager]::SecurityProtocol =
+        [Net.SecurityProtocolType]::Tls12 -bor [Net.ServicePointManager]::SecurityProtocol
+
+    $work = Join-Path $env:TEMP ('mn-dl-' + [Guid]::NewGuid().ToString('N'))
+    [void][System.IO.Directory]::CreateDirectory($work)
+    $zip = Join-Path $work 'download.zip'
+
+    try {
+        $before = $ProgressPreference
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+        $ProgressPreference = $before
+
+        if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
+            Expand-Archive -LiteralPath $zip -DestinationPath $destination -Force
+        } else {
+            # PowerShell 4 and older have no Expand-Archive.
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $destination)
+        }
+    }
+    finally {
+        if (Test-Dir $work) {
+            try { [System.IO.Directory]::Delete($work, $true) } catch { }
+        }
+    }
+}
+
+# ox_lib ships a zip containing a ready-made ox_lib\ folder, so it unpacks
+# straight into resources\.
+function Install-OxLib([string] $intoResources) {
+    $url  = 'https://github.com/overextended/ox_lib/releases/latest/download/ox_lib.zip'
+    $work = Join-Path $env:TEMP ('mn-oxlib-' + [Guid]::NewGuid().ToString('N'))
+    [void][System.IO.Directory]::CreateDirectory($work)
+
+    try {
+        Write-Info 'Downloading the latest ox_lib release...'
+        Expand-RemoteZip $url $work
+
+        $unpacked = Join-Path $work 'ox_lib'
+        if (-not (Test-File (Join-Path $unpacked 'fxmanifest.lua'))) {
+            throw 'the downloaded archive did not contain an ox_lib folder'
+        }
+
+        Invoke-RoboCopy $unpacked (Join-Path $intoResources 'ox_lib')
+        return $true
+    }
+    catch {
+        Write-Bad "Could not install ox_lib automatically: $($_.Exception.Message)"
+        return $false
+    }
+    finally {
+        if (Test-Dir $work) {
+            try { [System.IO.Directory]::Delete($work, $true) } catch { }
+        }
     }
 }
 
@@ -210,12 +277,43 @@ Write-Host "    ox_lib    : $(if ($hasOxLib) { 'present' } else { 'MISSING' })"
 Write-Host ''
 
 if (-not $hasOxLib) {
-    Write-Bad 'ox_lib is required and is not installed.'
-    Write-Host '         Download: https://github.com/overextended/ox_lib/releases'
-    Write-Host "         Extract to $resourcesRoot\ox_lib, then run this again."
-    Write-Host ''
-    Write-Bad 'Stopping. Nothing was changed.'
-    exit 1
+    Write-Warn 'ox_lib is required and is not installed.'
+
+    $shouldInstall = $false
+
+    if ($SkipOxLib) {
+        $shouldInstall = $false
+    }
+    elseif ($InstallOxLib) {
+        $shouldInstall = $true
+    }
+    elseif ($PSCmdlet.ShouldProcess('ox_lib', 'Download and install')) {
+        Write-Host ''
+        Write-Host '  It is a free, open-source library from the Overextended team and'
+        Write-Host '  is the only thing MangoNazlet cannot run without.'
+        Write-Host ''
+        $answer = Read-Host '  Download and install it now? [Y/n]'
+        $shouldInstall = ($answer -eq '' -or $answer -match '^[Yy]')
+    }
+
+    if ($shouldInstall) {
+        if (Install-OxLib $resourcesRoot) {
+            Write-Ok "ox_lib installed to $resourcesRoot\ox_lib"
+            $hasOxLib = $true
+        }
+    }
+
+    if (-not $hasOxLib) {
+        Write-Host ''
+        Write-Host '  Install it yourself instead:'
+        Write-Host '    1. https://github.com/overextended/ox_lib/releases'
+        Write-Host '    2. Download ox_lib.zip from the latest release'
+        Write-Host "    3. Extract so you have $resourcesRoot\ox_lib\fxmanifest.lua"
+        Write-Host '    4. Run this installer again'
+        Write-Host ''
+        Write-Bad 'Stopping. Nothing was changed.'
+        exit 1
+    }
 }
 
 if ($inventory -eq 'none') {

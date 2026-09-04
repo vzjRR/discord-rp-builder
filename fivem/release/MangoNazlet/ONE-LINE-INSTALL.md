@@ -15,6 +15,9 @@ $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProto
 
 بيحمّل آخر نسخة، ويفحص سيرفرك، وينسخ المورد، ويعدّل `server.cfg`.
 
+**لو `ox_lib` ناقص** بيسألك إذا تبيه يحمّله ويركّبه لك — اضغط Enter وخلاص.
+لو تبيه يركّبه بدون سؤال، أضف `-InstallOxLib` في نهاية الأمر.
+
 ## لو سيرفرك مو في `C:\FiveMServer`
 
 أضف المسار في نهاية الأمر:
