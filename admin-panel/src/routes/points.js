@@ -9,8 +9,8 @@ const { logAction } = require('../audit');
 const pointsDb = require('../pointsDb');
 
 const router = express.Router();
-const SCOPES = new Set(['weekly', 'monthly', 'alltime']);
-const PERIOD_TYPES = new Set(['WEEK', 'MONTH']);
+const SCOPES = new Set(['daily', 'weekly', 'monthly', 'yearly', 'alltime']);
+const PERIOD_TYPES = new Set(['DAY', 'WEEK', 'MONTH', 'YEAR']);
 
 function unavailable(res) {
   return res.status(503).json({
@@ -33,11 +33,15 @@ router.get('/api/points/user/:userId', requireAuth, requirePermission('points.vi
     username: user.username,
     displayName: user.display_name,
     totalPoints: user.total_points,
+    dailyPoints: user.daily_points,
     weeklyPoints: user.weekly_points,
     monthlyPoints: user.monthly_points,
+    yearlyPoints: user.yearly_points,
     totalImages: user.total_images,
+    dailyImages: user.daily_images,
     weeklyImages: user.weekly_images,
     monthlyImages: user.monthly_images,
+    yearlyImages: user.yearly_images,
     firstPointAt: user.first_point_at,
     lastPointAt: user.last_point_at,
     audit: pointsDb.getUserAudit(req.params.userId, 50),
@@ -107,6 +111,31 @@ router.post('/api/points/reset', requireAuth, requirePermission('points.manage')
     res.json({ ok: true, user });
   } catch (err) {
     console.error('points/reset:', err.message);
+    res.status(503).json({ error: err.message });
+  }
+});
+
+/**
+ * تصفير الترتيب بالكامل — يمسح كل الأعضاء ورسائلهم المُحتسَبة، ويبدأ من
+ * صفر. لا يمسّ الأرشيف (period_history) ولا سجل النشاط (audit_log). حماية
+ * ضد الضغط بالغلط: يتطلب إرسال confirm: "RESET" بالجسم بالضبط.
+ */
+router.post('/api/points/reset-all', requireAuth, requirePermission('points.manage'), async (req, res) => {
+  if (!pointsDb.isAvailable()) return unavailable(res);
+  if (req.body?.confirm !== 'RESET') {
+    return res.status(400).json({ error: 'أرسل confirm: "RESET" لتأكيد التصفير الكامل' });
+  }
+
+  try {
+    const result = pointsDb.resetAllPoints(req.admin.id);
+    await logAction(
+      req.admin,
+      'points.reset_all',
+      `صفّر ترتيب نقاط الدعم بالكامل — ${result.removedUsers} عضو، ${result.removedMessages} رسالة محتسبة`
+    );
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('points/reset-all:', err.message);
     res.status(503).json({ error: err.message });
   }
 });

@@ -106,6 +106,25 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
   `);
+
+  // ترتيب يومي/سنوي أُضيف بعد أول نشر — SQLite ما فيه "ADD COLUMN IF NOT
+  // EXISTS" مضمونة بكل النسخ، فنتأكد يدويًا (نفس أسلوب admin-panel/src/db.js).
+  const userCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+  for (const col of ['daily_points', 'yearly_points', 'daily_images', 'yearly_images']) {
+    if (!userCols.includes(col)) {
+      db.exec(`ALTER TABLE users ADD COLUMN ${col} INTEGER NOT NULL DEFAULT 0`);
+    }
+  }
+
+  const processedCols = db.prepare('PRAGMA table_info(processed_messages)').all().map((c) => c.name);
+  if (!processedCols.includes('day_key')) {
+    db.exec('ALTER TABLE processed_messages ADD COLUMN day_key TEXT');
+  }
+  if (!processedCols.includes('year_key')) {
+    db.exec('ALTER TABLE processed_messages ADD COLUMN year_key TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_processed_messages_day ON processed_messages(day_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_processed_messages_year ON processed_messages(year_key)');
 }
 
 module.exports = { db, migrate, DB_PATH };

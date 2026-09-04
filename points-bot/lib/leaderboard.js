@@ -6,8 +6,10 @@ const { db } = require('./db');
 const { rank } = require('./ranking');
 
 function pickPointsAndImages(user, scope) {
+  if (scope === 'daily') return { points: user.daily_points, images: user.daily_images };
   if (scope === 'weekly') return { points: user.weekly_points, images: user.weekly_images };
   if (scope === 'monthly') return { points: user.monthly_points, images: user.monthly_images };
+  if (scope === 'yearly') return { points: user.yearly_points, images: user.yearly_images };
   return { points: user.total_points, images: user.total_images };
 }
 

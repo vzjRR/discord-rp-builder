@@ -9,6 +9,19 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="theme-color" content="#08050c">
 <link rel="stylesheet" href="/css/style.css">
+<style>
+  #printHeader { display: none; }
+  @media print {
+    /* طباعة/تصدير PDF عبر مربع طباعة المتصفح — يعالج تشكيل واتجاه النص
+       العربي بشكل صحيح تلقائيًا (bidi + ligatures)، بعكس أي مكتبة PDF من
+       جهة الخادم لا تصنع هذا بنفسها. */
+    .sidebar, .footer-credit, .no-print, #unavailableCard { display: none !important; }
+    .app-shell, .main { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+    #printHeader { display: block !important; margin-bottom: 16px; }
+    body { background: #fff !important; color: #000 !important; }
+    table { color: #000 !important; }
+  }
+</style>
 </head>
 <body>
 <div class="app-shell">
@@ -40,19 +53,28 @@
     </div>
 
     <div class="card">
-      <div class="tabs">
-        <button class="tab-btn active" data-scope="alltime">الكل</button>
-        <button class="tab-btn" data-scope="monthly">هذا الشهر</button>
+      <div id="printHeader">
+        <h2 style="margin:0 0 4px">ترتيب نقاط الدعم — <span id="printScopeLabel"></span></h2>
+        <p class="subtitle" style="margin:0" id="printDate"></p>
+      </div>
+      <div class="tabs no-print">
+        <button class="tab-btn" data-scope="daily">اليوم</button>
         <button class="tab-btn" data-scope="weekly">هذا الأسبوع</button>
+        <button class="tab-btn" data-scope="monthly">هذا الشهر</button>
+        <button class="tab-btn" data-scope="yearly">هذه السنة</button>
+        <button class="tab-btn active" data-scope="alltime">الكل</button>
       </div>
       <table>
         <thead><tr><th>#</th><th>العضو</th><th>النقاط</th><th>الصور</th></tr></thead>
         <tbody id="leaderboardBody"><tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr></tbody>
       </table>
-      <button class="btn small ghost" id="refreshLeaderboard">تحديث الآن</button>
+      <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn small ghost" id="refreshLeaderboard">تحديث الآن</button>
+        <button class="btn small ghost" id="exportPdf">🖨️ طباعة / تصدير PDF</button>
+      </div>
     </div>
 
-    <div class="card" id="manageCard" style="display:none">
+    <div class="card no-print" id="manageCard" style="display:none">
       <h2>تعديل يدوي</h2>
       <p class="subtitle">إضافة أو خصم نقاط لعضو، أو تصفير رصيده بالكامل. يُسجَّل كل تعديل في سجل النشاط.</p>
       <label>العضو</label>
@@ -66,9 +88,19 @@
         <button class="btn small danger" id="adjustReset">تصفير رصيد العضو</button>
       </div>
       <div class="msg" id="adjustMsg"></div>
+
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+        <h2 style="color:var(--danger)">⚠️ تصفير الترتيب بالكامل</h2>
+        <p class="subtitle">
+          يمسح رصيد كل الأعضاء ورسائلهم المحتسبة نهائيًا ويبدأ العدّ من الصفر
+          — لا يمكن التراجع عنه. أرشيف الفترات المنتهية وسجل النشاط لا يتأثران.
+        </p>
+        <button class="btn small danger" id="resetAllBtn">تصفير الترتيب بالكامل وإعادة تهيئته</button>
+        <div class="msg" id="resetAllMsg"></div>
+      </div>
     </div>
 
-    <div class="card">
+    <div class="card no-print">
       <h2>آخر العمليات</h2>
       <table>
         <thead><tr><th>الوقت</th><th>النوع</th><th>العضو</th><th>التغيير</th><th>التفاصيل</th></tr></thead>
@@ -85,13 +117,24 @@
   const nf = new Intl.NumberFormat('ar-SA');
   let scope = 'alltime';
 
+  const SCOPE_LABELS = {
+    daily: 'اليوم',
+    weekly: 'هذا الأسبوع',
+    monthly: 'هذا الشهر',
+    yearly: 'هذه السنة',
+    alltime: 'كل الأوقات',
+  };
+
   const ACTION_LABELS = {
     IMAGE_COUNTED: 'صورة محتسبة',
     MESSAGE_EDIT_ADJUSTED: 'تعديل رسالة',
     MESSAGE_DELETE_ADJUSTED: 'حذف رسالة',
     MANUAL_ADJUSTMENT: 'تعديل يدوي',
+    DAILY_ROLLOVER: 'تجديد يومي',
     WEEKLY_ROLLOVER: 'تجديد أسبوعي',
     MONTHLY_ROLLOVER: 'تجديد شهري',
+    YEARLY_ROLLOVER: 'تجديد سنوي',
+    FULL_RESET: '⚠️ تصفير كامل',
     ERROR: 'خطأ',
   };
 
@@ -164,6 +207,12 @@
   });
   document.getElementById('refreshLeaderboard').addEventListener('click', () => { loadLeaderboard(); loadAudit(); });
 
+  document.getElementById('exportPdf').addEventListener('click', () => {
+    document.getElementById('printScopeLabel').textContent = SCOPE_LABELS[scope] || scope;
+    document.getElementById('printDate').textContent = `تاريخ الإصدار: ${new Date().toLocaleString('ar-SA')}`;
+    window.print();
+  });
+
   // بطاقة التعديل اليدوي: صلاحية points.manage وحدها — الخادم يمنعها أيضًا،
   // وهذا إخفاء للواجهة فقط.
   (async () => {
@@ -189,7 +238,7 @@
     const userId = adjustPicker.getId();
     if (!userId) return showMsg(msgEl, 'اختر العضو أولًا', false);
 
-    if (kind === 'reset' && !confirm('سيُصفَّر رصيد هذا العضو بالكامل (إجمالي/أسبوعي/شهري). هل أنت متأكد؟')) return;
+    if (kind === 'reset' && !confirm('سيُصفَّر رصيد هذا العضو بالكامل (إجمالي/يومي/أسبوعي/شهري/سنوي). هل أنت متأكد؟')) return;
 
     const displayName = document.getElementById('adjustPicker').querySelector('.mp-input')?.value || userId;
     const btnId = kind === 'reset' ? 'adjustReset' : 'adjustApply';
@@ -227,6 +276,27 @@
 
   document.getElementById('adjustApply').addEventListener('click', () => runAdjust('adjust'));
   document.getElementById('adjustReset').addEventListener('click', () => runAdjust('reset'));
+
+  document.getElementById('resetAllBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('resetAllMsg');
+    const typed = prompt('سيُصفَّر رصيد كل الأعضاء وتُمسح رسائلهم المحتسبة نهائيًا — بلا تراجع.\n\nاكتب RESET بالضبط للتأكيد:');
+    if (typed !== 'RESET') {
+      if (typed !== null) showMsg(msgEl, 'لم يتطابق النص — لم يُنفَّذ شيء.', false);
+      return;
+    }
+    const btn = document.getElementById('resetAllBtn');
+    btn.disabled = true;
+    try {
+      const data = await api('POST', '/api/points/reset-all', { confirm: 'RESET' });
+      showMsg(msgEl, `تم التصفير الكامل — ${data.removedUsers} عضو، ${data.removedMessages} رسالة محتسبة.`, true);
+      loadLeaderboard();
+      loadAudit();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   loadLeaderboard();
   loadAudit();

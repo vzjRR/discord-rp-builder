@@ -49,8 +49,10 @@ function compareRankable(a, b) {
 }
 
 function pickPointsAndImages(user, scope) {
+  if (scope === 'daily') return { points: user.daily_points, images: user.daily_images };
   if (scope === 'weekly') return { points: user.weekly_points, images: user.weekly_images };
   if (scope === 'monthly') return { points: user.monthly_points, images: user.monthly_images };
+  if (scope === 'yearly') return { points: user.yearly_points, images: user.yearly_images };
   return { points: user.total_points, images: user.total_images };
 }
 
@@ -164,7 +166,7 @@ function upsertUserProfile(conn, userId, username, displayName) {
     .run(userId, username, displayName, now, now);
 }
 
-/** تعديل يدوي من المنصة (owner/points.manage) — يؤثر دايمًا على الفترة الحالية. */
+/** تعديل يدوي من المنصة (owner/points.manage) — يؤثر دايمًا على كل الفترات الحالية. */
 function adjustPointsManually(userId, username, displayName, pointsDelta, actorId, reason) {
   const conn = getDb();
   if (!conn) throw new Error('قاعدة نقاط الصور غير متاحة — تأكد إن البوت اشتغل مرة واحدة على الأقل');
@@ -176,7 +178,7 @@ function adjustPointsManually(userId, username, displayName, pointsDelta, actorI
     const current = conn.prepare('SELECT * FROM users WHERE discord_user_id = ?').get(userId);
     conn
       .prepare(
-        `UPDATE users SET total_points = ?, weekly_points = ?, monthly_points = ?,
+        `UPDATE users SET total_points = ?, weekly_points = ?, monthly_points = ?, daily_points = ?, yearly_points = ?,
                            first_point_at = ?, last_point_at = ?, updated_at = ?
          WHERE discord_user_id = ?`
       )
@@ -184,6 +186,8 @@ function adjustPointsManually(userId, username, displayName, pointsDelta, actorI
         clamp(current.total_points + pointsDelta),
         clamp(current.weekly_points + pointsDelta),
         clamp(current.monthly_points + pointsDelta),
+        clamp(current.daily_points + pointsDelta),
+        clamp(current.yearly_points + pointsDelta),
         current.first_point_at ?? (pointsDelta > 0 ? now : current.first_point_at),
         pointsDelta > 0 ? now : current.last_point_at,
         now,
@@ -210,8 +214,9 @@ function resetUserPoints(userId, actorId) {
     const now = Date.now();
     conn
       .prepare(
-        `UPDATE users SET total_points = 0, weekly_points = 0, monthly_points = 0,
-                           total_images = 0, weekly_images = 0, monthly_images = 0, updated_at = ?
+        `UPDATE users SET total_points = 0, weekly_points = 0, monthly_points = 0, daily_points = 0, yearly_points = 0,
+                           total_images = 0, weekly_images = 0, monthly_images = 0, daily_images = 0, yearly_images = 0,
+                           updated_at = ?
          WHERE discord_user_id = ?`
       )
       .run(now, userId);
@@ -226,6 +231,35 @@ function resetUserPoints(userId, actorId) {
   })();
 }
 
+/**
+ * تصفير الترتيب بالكامل (كل الأعضاء) وإعادة تهيئته من الصفر — يمسح جدولي
+ * users وprocessed_messages تمامًا. أرشيف الفترات المنتهية (period_history)
+ * وسجل النشاط (audit_log) يبقيان كما هما — سجل تاريخي لا علاقة له بالرصيد
+ * الحيّ. رسالة قديمة تُعدَّل بعد هذا تُعامَل كرسالة جديدة تمامًا (لا يوجد
+ * لها صف بـ processed_messages بعد المسح)، وحذفها لاحقًا لا يفعل شيئًا —
+ * كلاهما سلوك متوقَّع لبداية نظيفة فعلية.
+ */
+function resetAllPoints(actorId) {
+  const conn = getDb();
+  if (!conn) throw new Error('قاعدة نقاط الصور غير متاحة — تأكد إن البوت اشتغل مرة واحدة على الأقل');
+
+  return conn.transaction(() => {
+    const { count: userCount } = conn.prepare('SELECT COUNT(*) AS count FROM users').get();
+    const { count: messageCount } = conn.prepare('SELECT COUNT(*) AS count FROM processed_messages').get();
+
+    conn.prepare('DELETE FROM processed_messages').run();
+    conn.prepare('DELETE FROM users').run();
+
+    recordAudit(conn, {
+      actionType: 'FULL_RESET',
+      actorId,
+      details: { removedUsers: userCount, removedMessages: messageCount },
+    });
+
+    return { removedUsers: userCount, removedMessages: messageCount };
+  })();
+}
+
 module.exports = {
   DB_PATH,
   isAvailable,
@@ -237,4 +271,5 @@ module.exports = {
   getHistoricalLeaderboard,
   adjustPointsManually,
   resetUserPoints,
+  resetAllPoints,
 };

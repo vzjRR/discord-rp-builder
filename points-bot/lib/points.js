@@ -8,7 +8,13 @@
 // مسح الأرشيف) لا تُضاعف النقاط أبدًا - الإدراج الثاني يفشل بصمت ونتجاهله.
 
 const { db } = require('./db');
-const { periodKeysFor, getCurrentWeekKey, getCurrentMonthKey } = require('./period');
+const {
+  periodKeysFor,
+  getCurrentWeekKey,
+  getCurrentMonthKey,
+  getCurrentDayKey,
+  getCurrentYearKey,
+} = require('./period');
 const { appendAuditFile } = require('./auditFile');
 
 function boolEnv(name, fallback) {
@@ -22,7 +28,6 @@ function cfg() {
     timezone: process.env.TIMEZONE || 'Asia/Muscat',
     weekStartDay: (process.env.WEEK_START_DAY || 'MONDAY').toUpperCase(),
     imagePointsChannelId: process.env.IMAGE_POINTS_CHANNEL_ID,
-    removePointsOnMessageDelete: boolEnv('REMOVE_POINTS_ON_MESSAGE_DELETE', false),
     adjustPointsOnMessageEdit: boolEnv('ADJUST_POINTS_ON_MESSAGE_EDIT', true),
   };
 }
@@ -77,13 +82,20 @@ function upsertUserProfile(userId, username, displayName) {
     return;
   }
   db.prepare(
-    `INSERT INTO users (discord_user_id, username, display_name, total_points, weekly_points, monthly_points,
-                         total_images, weekly_images, monthly_images, first_point_at, last_point_at, created_at, updated_at)
-     VALUES (?, ?, ?, 0, 0, 0, 0, 0, 0, NULL, NULL, ?, ?)`
+    `INSERT INTO users (discord_user_id, username, display_name,
+                         total_points, weekly_points, monthly_points, daily_points, yearly_points,
+                         total_images, weekly_images, monthly_images, daily_images, yearly_images,
+                         first_point_at, last_point_at, created_at, updated_at)
+     VALUES (?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, ?, ?)`
   ).run(userId, username, displayName, now, now);
 }
 
-function applyUserDelta(userId, pointsDelta, imagesDelta, applyWeekly, applyMonthly) {
+/**
+ * يحرّك رصيد عضو. `periods` يحدد أي "سلال" فترة حالية (أسبوعية/شهرية/يومية/سنوية)
+ * تتأثر بالتغيير هذا، غير total التي تتأثر دايمًا. كل الأرصدة محمية من السالب
+ * (clamp) لأن الحذف/التعديل قد يصل بترتيب غير متوقع تحت ضغط أحداث ديسكورد.
+ */
+function applyUserDelta(userId, pointsDelta, imagesDelta, periods) {
   if (pointsDelta === 0 && imagesDelta === 0) return;
   const now = Date.now();
   const current = getUser(userId);
@@ -95,22 +107,36 @@ function applyUserDelta(userId, pointsDelta, imagesDelta, applyWeekly, applyMont
   const clamp = (n) => Math.max(0, n);
   db.prepare(
     `UPDATE users SET
-       total_points = ?, weekly_points = ?, monthly_points = ?,
-       total_images = ?, weekly_images = ?, monthly_images = ?,
+       total_points = ?, weekly_points = ?, monthly_points = ?, daily_points = ?, yearly_points = ?,
+       total_images = ?, weekly_images = ?, monthly_images = ?, daily_images = ?, yearly_images = ?,
        first_point_at = ?, last_point_at = ?, updated_at = ?
      WHERE discord_user_id = ?`
   ).run(
     clamp(current.total_points + pointsDelta),
-    applyWeekly ? clamp(current.weekly_points + pointsDelta) : current.weekly_points,
-    applyMonthly ? clamp(current.monthly_points + pointsDelta) : current.monthly_points,
+    periods.weekly ? clamp(current.weekly_points + pointsDelta) : current.weekly_points,
+    periods.monthly ? clamp(current.monthly_points + pointsDelta) : current.monthly_points,
+    periods.daily ? clamp(current.daily_points + pointsDelta) : current.daily_points,
+    periods.yearly ? clamp(current.yearly_points + pointsDelta) : current.yearly_points,
     clamp(current.total_images + imagesDelta),
-    applyWeekly ? clamp(current.weekly_images + imagesDelta) : current.weekly_images,
-    applyMonthly ? clamp(current.monthly_images + imagesDelta) : current.monthly_images,
+    periods.weekly ? clamp(current.weekly_images + imagesDelta) : current.weekly_images,
+    periods.monthly ? clamp(current.monthly_images + imagesDelta) : current.monthly_images,
+    periods.daily ? clamp(current.daily_images + imagesDelta) : current.daily_images,
+    periods.yearly ? clamp(current.yearly_images + imagesDelta) : current.yearly_images,
     current.first_point_at ?? (pointsDelta > 0 ? now : current.first_point_at),
     pointsDelta > 0 ? now : current.last_point_at,
     now,
     userId
   );
+}
+
+/** أي من الفترات الحالية (يوم/أسبوع/شهر/سنة) تطابق مفاتيح فترة رسالة معيّنة. */
+function currentPeriodsFor(keys, config) {
+  return {
+    weekly: keys.weekKey === getCurrentWeekKey(config.timezone, config.weekStartDay),
+    monthly: keys.monthKey === getCurrentMonthKey(config.timezone),
+    daily: keys.dayKey === getCurrentDayKey(config.timezone),
+    yearly: keys.yearKey === getCurrentYearKey(config.timezone),
+  };
 }
 
 /**
@@ -129,36 +155,32 @@ function recordNewMessage(ctx, source = 'live') {
 
     upsertUserProfile(ctx.userId, ctx.username, ctx.displayName);
 
-    const { weekKey, monthKey } = periodKeysFor(ctx.messageCreatedAt, config.timezone, config.weekStartDay);
+    const keys = periodKeysFor(ctx.messageCreatedAt, config.timezone, config.weekStartDay);
     const points = pointsForImageCount(ctx.imageCount);
     const now = Date.now();
 
     db.prepare(
       `INSERT INTO processed_messages
-         (message_id, user_id, channel_id, image_count, points_awarded, week_key, month_key,
+         (message_id, user_id, channel_id, image_count, points_awarded, week_key, month_key, day_key, year_key,
           source, message_created_at, created_at, updated_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`
     ).run(
       ctx.messageId,
       ctx.userId,
       ctx.channelId,
       ctx.imageCount,
       points,
-      weekKey,
-      monthKey,
+      keys.weekKey,
+      keys.monthKey,
+      keys.dayKey,
+      keys.yearKey,
       source,
       ctx.messageCreatedAt,
       now,
       now
     );
 
-    applyUserDelta(
-      ctx.userId,
-      points,
-      ctx.imageCount,
-      weekKey === getCurrentWeekKey(config.timezone, config.weekStartDay),
-      monthKey === getCurrentMonthKey(config.timezone)
-    );
+    applyUserDelta(ctx.userId, points, ctx.imageCount, currentPeriodsFor(keys, config));
 
     recordAudit({
       actionType: 'IMAGE_COUNTED',
@@ -166,7 +188,7 @@ function recordNewMessage(ctx, source = 'live') {
       messageId: ctx.messageId,
       channelId: ctx.channelId,
       pointsDelta: points,
-      details: { images: ctx.imageCount, source, weekKey, monthKey },
+      details: { images: ctx.imageCount, source, ...keys },
     });
 
     return { outcome: 'counted', pointsDelta: points };
@@ -175,7 +197,7 @@ function recordNewMessage(ctx, source = 'live') {
 
 /**
  * تعديل رسالة. النقاط محدودة بـ ١ لكل رسالة، فالانتقال 0<->N صور فقط هو
- * اللي يحرّك نقطة - أي تعديل ثاني (يبقى فيها صورة أو تبقى بلا صورة) لا يغيّر شيء.
+ * اللي يحرّك نقطة - أي تعديل ثاني (يبقى فيها صور أو تبقى بلا صورة) لا يغيّر شيء.
  */
 function recordMessageEdit(ctx) {
   if (!isTargetChannel(ctx.channelId)) return { outcome: 'ignored_wrong_channel', pointsDelta: 0 };
@@ -206,13 +228,8 @@ function recordMessageEdit(ctx) {
       ctx.messageId
     );
 
-    applyUserDelta(
-      existing.user_id,
-      pointsDelta,
-      imagesDelta,
-      existing.week_key === getCurrentWeekKey(config.timezone, config.weekStartDay),
-      existing.month_key === getCurrentMonthKey(config.timezone)
-    );
+    const keys = { weekKey: existing.week_key, monthKey: existing.month_key, dayKey: existing.day_key, yearKey: existing.year_key };
+    applyUserDelta(existing.user_id, pointsDelta, imagesDelta, currentPeriodsFor(keys, config));
 
     recordAudit({
       actionType: 'MESSAGE_EDIT_ADJUSTED',
@@ -227,7 +244,10 @@ function recordMessageEdit(ctx) {
   })();
 }
 
-/** حذف رسالة. لا يشيل نقطة إلا لو REMOVE_POINTS_ON_MESSAGE_DELETE=true. */
+/**
+ * حذف رسالة. يخصم نقطتها تلقائيًا دايمًا (لا خيار تعطيل) - رسالة انحذفت
+ * معناها الصورة ما عادت موجودة، فلا مبرر لبقاء نقطتها.
+ */
 function recordMessageDelete(messageId, channelId) {
   if (!isTargetChannel(channelId)) return { outcome: 'ignored_wrong_channel', pointsDelta: 0 };
 
@@ -240,16 +260,9 @@ function recordMessageDelete(messageId, channelId) {
     const now = Date.now();
     db.prepare('UPDATE processed_messages SET deleted_at = ?, updated_at = ? WHERE message_id = ?').run(now, now, messageId);
 
-    if (!config.removePointsOnMessageDelete) return { outcome: 'kept', pointsDelta: 0 };
-
     const pointsDelta = -existing.points_awarded;
-    applyUserDelta(
-      existing.user_id,
-      pointsDelta,
-      -existing.image_count,
-      existing.week_key === getCurrentWeekKey(config.timezone, config.weekStartDay),
-      existing.month_key === getCurrentMonthKey(config.timezone)
-    );
+    const keys = { weekKey: existing.week_key, monthKey: existing.month_key, dayKey: existing.day_key, yearKey: existing.year_key };
+    applyUserDelta(existing.user_id, pointsDelta, -existing.image_count, currentPeriodsFor(keys, config));
 
     recordAudit({
       actionType: 'MESSAGE_DELETE_ADJUSTED',
@@ -264,11 +277,11 @@ function recordMessageDelete(messageId, channelId) {
   })();
 }
 
-/** تعديل يدوي من المنصة (owner) - يؤثر دايمًا على الفترة الحالية، بخلاف نقاط الرسائل. */
+/** تعديل يدوي من المنصة (owner) - يؤثر دايمًا على كل الفترات الحالية، بخلاف نقاط الرسائل. */
 function adjustPointsManually(userId, username, displayName, pointsDelta, actorId, actionType, reason) {
   return db.transaction(() => {
     upsertUserProfile(userId, username, displayName);
-    applyUserDelta(userId, pointsDelta, 0, true, true);
+    applyUserDelta(userId, pointsDelta, 0, { weekly: true, monthly: true, daily: true, yearly: true });
     recordAudit({ actionType, userId, actorId, pointsDelta, details: reason ? { reason } : null });
     return getUser(userId);
   })();
@@ -280,8 +293,9 @@ function resetUserPoints(userId, actorId) {
     if (!existing) return undefined;
     const now = Date.now();
     db.prepare(
-      `UPDATE users SET total_points = 0, weekly_points = 0, monthly_points = 0,
-                         total_images = 0, weekly_images = 0, monthly_images = 0, updated_at = ?
+      `UPDATE users SET total_points = 0, weekly_points = 0, monthly_points = 0, daily_points = 0, yearly_points = 0,
+                         total_images = 0, weekly_images = 0, monthly_images = 0, daily_images = 0, yearly_images = 0,
+                         updated_at = ?
        WHERE discord_user_id = ?`
     ).run(now, userId);
     recordAudit({

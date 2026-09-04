@@ -47,4 +47,34 @@ function getMonthKey(at) {
   return at.toFormat('yyyy-LL');
 }
 
-module.exports = { nowInZone, getWeekBounds, getWeekKey, getMonthBounds, getMonthKey };
+function getDayBounds(at) {
+  const start = at.startOf('day');
+  const end = start.plus({ days: 1 });
+  return { start, end };
+}
+
+function getDayKey(at) {
+  return at.toFormat('yyyy-LL-dd');
+}
+
+function getYearBounds(at) {
+  const start = at.startOf('year');
+  const end = start.plus({ years: 1 });
+  return { start, end };
+}
+
+function getYearKey(at) {
+  return at.toFormat('yyyy');
+}
+
+module.exports = {
+  nowInZone,
+  getWeekBounds,
+  getWeekKey,
+  getMonthBounds,
+  getMonthKey,
+  getDayBounds,
+  getDayKey,
+  getYearBounds,
+  getYearKey,
+};

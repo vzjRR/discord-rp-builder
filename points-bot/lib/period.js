@@ -1,16 +1,27 @@
-// "الفترة الحالية" (أي أسبوع/شهر نعتبره الآن الحيّ) مصدرها bot_state لا
-// حساب مباشر من الوقت الحالي في كل مرة - هذا يخلي نقاط رسالة تُنسب دايمًا
+// "الفترة الحالية" (أي يوم/أسبوع/شهر/سنة نعتبره الآن الحيّ) مصدرها bot_state
+// لا حساب مباشر من الوقت الحالي في كل مرة - هذا يخلي نقاط رسالة تُنسب دايمًا
 // للفترة اللي rollover.js اعتمدها فعليًا كحالية، حتى في اللحظات القليلة
 // بين تجاوز حد فترة حقيقي واكتشاف rollover.js له.
 
+const { DateTime } = require('luxon');
 const { db } = require('./db');
-const { getWeekBounds, getWeekKey, getMonthBounds, getMonthKey, nowInZone } = require('./timezone');
+const {
+  getWeekBounds,
+  getWeekKey,
+  getMonthBounds,
+  getMonthKey,
+  getDayBounds,
+  getDayKey,
+  getYearBounds,
+  getYearKey,
+  nowInZone,
+} = require('./timezone');
 
 const KEYS = {
-  CURRENT_WEEK_KEY: 'current_week_key',
-  CURRENT_WEEK_START: 'current_week_start',
-  CURRENT_MONTH_KEY: 'current_month_key',
-  CURRENT_MONTH_START: 'current_month_start',
+  WEEK: { key: 'current_week_key', start: 'current_week_start' },
+  MONTH: { key: 'current_month_key', start: 'current_month_start' },
+  DAY: { key: 'current_day_key', start: 'current_day_start' },
+  YEAR: { key: 'current_year_key', start: 'current_year_start' },
 };
 
 function getState(key) {
@@ -26,61 +37,87 @@ function setState(key, value) {
   ).run(key, value, now);
 }
 
-function initWeekStateIfMissing(timezone, weekStartDay) {
-  const existingKey = getState(KEYS.CURRENT_WEEK_KEY);
-  const existingStart = getState(KEYS.CURRENT_WEEK_START);
-  if (existingKey && existingStart) return { key: existingKey, startMs: Number(existingStart) };
-
-  const bounds = getWeekBounds(nowInZone(timezone), weekStartDay);
-  const key = getWeekKey(bounds.start, weekStartDay);
-  setState(KEYS.CURRENT_WEEK_KEY, key);
-  setState(KEYS.CURRENT_WEEK_START, String(bounds.start.toMillis()));
-  return { key, startMs: bounds.start.toMillis() };
+function boundsAndKeyFor(period, now, weekStartDay) {
+  if (period === 'WEEK') {
+    const bounds = getWeekBounds(now, weekStartDay);
+    return { bounds, key: getWeekKey(bounds.start, weekStartDay) };
+  }
+  if (period === 'MONTH') {
+    const bounds = getMonthBounds(now);
+    return { bounds, key: getMonthKey(bounds.start) };
+  }
+  if (period === 'DAY') {
+    const bounds = getDayBounds(now);
+    return { bounds, key: getDayKey(bounds.start) };
+  }
+  const bounds = getYearBounds(now);
+  return { bounds, key: getYearKey(bounds.start) };
 }
 
-function initMonthStateIfMissing(timezone) {
-  const existingKey = getState(KEYS.CURRENT_MONTH_KEY);
-  const existingStart = getState(KEYS.CURRENT_MONTH_START);
+/** الفترة الحالية المخزَّنة، أو تُهيَّأ أول مرة من الوقت الفعلي إن لم تكن موجودة. */
+function initPeriodStateIfMissing(period, timezone, weekStartDay) {
+  const stateKeys = KEYS[period];
+  const existingKey = getState(stateKeys.key);
+  const existingStart = getState(stateKeys.start);
   if (existingKey && existingStart) return { key: existingKey, startMs: Number(existingStart) };
 
-  const bounds = getMonthBounds(nowInZone(timezone));
-  const key = getMonthKey(bounds.start);
-  setState(KEYS.CURRENT_MONTH_KEY, key);
-  setState(KEYS.CURRENT_MONTH_START, String(bounds.start.toMillis()));
+  const { bounds, key } = boundsAndKeyFor(period, nowInZone(timezone), weekStartDay);
+  setState(stateKeys.key, key);
+  setState(stateKeys.start, String(bounds.start.toMillis()));
   return { key, startMs: bounds.start.toMillis() };
 }
 
 function getCurrentWeekKey(timezone, weekStartDay) {
-  return initWeekStateIfMissing(timezone, weekStartDay).key;
+  return initPeriodStateIfMissing('WEEK', timezone, weekStartDay).key;
 }
-
 function getCurrentWeekStart(timezone, weekStartDay) {
-  return initWeekStateIfMissing(timezone, weekStartDay).startMs;
+  return initPeriodStateIfMissing('WEEK', timezone, weekStartDay).startMs;
 }
-
 function getCurrentMonthKey(timezone) {
-  return initMonthStateIfMissing(timezone).key;
+  return initPeriodStateIfMissing('MONTH', timezone).key;
 }
-
 function getCurrentMonthStart(timezone) {
-  return initMonthStateIfMissing(timezone).startMs;
+  return initPeriodStateIfMissing('MONTH', timezone).startMs;
+}
+function getCurrentDayKey(timezone) {
+  return initPeriodStateIfMissing('DAY', timezone).key;
+}
+function getCurrentDayStart(timezone) {
+  return initPeriodStateIfMissing('DAY', timezone).startMs;
+}
+function getCurrentYearKey(timezone) {
+  return initPeriodStateIfMissing('YEAR', timezone).key;
+}
+function getCurrentYearStart(timezone) {
+  return initPeriodStateIfMissing('YEAR', timezone).startMs;
 }
 
 function setCurrentWeek(key, startMs) {
-  setState(KEYS.CURRENT_WEEK_KEY, key);
-  setState(KEYS.CURRENT_WEEK_START, String(startMs));
+  setState(KEYS.WEEK.key, key);
+  setState(KEYS.WEEK.start, String(startMs));
 }
-
 function setCurrentMonth(key, startMs) {
-  setState(KEYS.CURRENT_MONTH_KEY, key);
-  setState(KEYS.CURRENT_MONTH_START, String(startMs));
+  setState(KEYS.MONTH.key, key);
+  setState(KEYS.MONTH.start, String(startMs));
+}
+function setCurrentDay(key, startMs) {
+  setState(KEYS.DAY.key, key);
+  setState(KEYS.DAY.start, String(startMs));
+}
+function setCurrentYear(key, startMs) {
+  setState(KEYS.YEAR.key, key);
+  setState(KEYS.YEAR.start, String(startMs));
 }
 
-/** الفترة اللي تنتمي لها رسالة فعليًا حسب توقيت إرسالها - مستقلة عن "الحالية". */
+/** الفترات اللي تنتمي لها رسالة فعليًا حسب توقيت إرسالها - مستقلة عن "الحالية". */
 function periodKeysFor(messageCreatedAt, timezone, weekStartDay) {
-  const { DateTime } = require('luxon');
   const at = DateTime.fromMillis(messageCreatedAt).setZone(timezone);
-  return { weekKey: getWeekKey(at, weekStartDay), monthKey: getMonthKey(at) };
+  return {
+    weekKey: getWeekKey(at, weekStartDay),
+    monthKey: getMonthKey(at),
+    dayKey: getDayKey(at),
+    yearKey: getYearKey(at),
+  };
 }
 
 module.exports = {
@@ -91,7 +128,13 @@ module.exports = {
   getCurrentWeekStart,
   getCurrentMonthKey,
   getCurrentMonthStart,
+  getCurrentDayKey,
+  getCurrentDayStart,
+  getCurrentYearKey,
+  getCurrentYearStart,
   setCurrentWeek,
   setCurrentMonth,
+  setCurrentDay,
+  setCurrentYear,
   periodKeysFor,
 };
