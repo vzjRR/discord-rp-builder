@@ -511,5 +511,49 @@ check('/mn:place refuses to run from the console', (function()
 end)())
 
 -- ═══════════════════════════════════════════════════════════════
+group('interaction points')
+-- ═══════════════════════════════════════════════════════════════
+
+-- The duty prompt read "[E] ..." while nothing listened for E: the clock was
+-- wired only to the target resource. A prompt naming a key that does nothing
+-- is worse than no prompt, so these pin the two together.
+local zonesSource = assert(io.open('client/zones.lua')):read('a')
+
+check('the [E] prompt has a key handler behind it',
+    zonesSource:find('IsControlJustReleased%(0, 38%)') ~= nil)
+
+check('points are declared once and fed to both paths', (function()
+    return zonesSource:find('local function buildPoints') ~= nil
+        and zonesSource:find('registerTargets') ~= nil
+end)())
+
+check('every point carries a label, an icon and a range', (function()
+    -- Each add({...}) block must name all three, or the [E] prompt renders blank.
+    for block in zonesSource:gmatch('add%(%{(.-)%}%)') do
+        if block:find('id%s*=') then
+            if not (block:find('label%s*=') and block:find('icon%s*=') and block:find('range%s*=')) then
+                return false
+            end
+        end
+    end
+    return true
+end)())
+
+check('every point carries a permission check and an action', (function()
+    for block in zonesSource:gmatch('add%(%{(.-)%}%)') do
+        if block:find('id%s*=') then
+            if not (block:find('can%s*=') and block:find('run%s*=')) then return false end
+        end
+    end
+    return true
+end)())
+
+check('the key prompt only runs frame-accurate while on a point',
+    zonesSource:find('sleep = 0') ~= nil and zonesSource:find('local sleep = 1000') ~= nil)
+
+check('targets and prompt are cleaned up on stop',
+    zonesSource:find('onResourceStop') ~= nil and zonesSource:find('clearTargets') ~= nil)
+
+-- ═══════════════════════════════════════════════════════════════
 print(('\n%s\n  %d passed, %d failed\n'):format(string.rep('─', 46), pass, fail))
 os.exit(fail == 0 and 0 or 1)

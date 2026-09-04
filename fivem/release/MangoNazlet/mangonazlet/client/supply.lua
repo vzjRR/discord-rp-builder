@@ -66,6 +66,17 @@ function MN.openSupply()
         }
     end
 
+    -- The van run belongs with the supplier, so one interaction reaches both.
+    if Config.Supply.enabled and Config.Supply.run.enabled then
+        table.insert(options, 1, {
+            title = T('supply_run'),
+            description = run and T('supply_run_back') or nil,
+            icon = 'truck-ramp-box',
+            iconColor = run and Config.UI.theme.mango or nil,
+            onSelect = MN.toggleSupplyRun,
+        })
+    end
+
     lib.registerContext({
         id = 'mn_supply',
         title = T('supply_title'),

@@ -25,7 +25,6 @@ MN.Locales.en = {
     duty_on         = 'Clocked in. Have a good shift.',
     duty_off        = 'Clocked out. See you next time.',
     duty_target     = 'Clock in / out',
-    duty_hint       = '[E] MangoNazlet staff clock',
     duty_blocked    = 'Return the shop stock to the freezer before clocking out.',
 
     -- stations

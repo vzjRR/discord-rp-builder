@@ -162,6 +162,11 @@ Config.UI = {
     contextPosition = 'top-right',
     blip = true,
     textUI = true,
+    -- Offer every interaction on [E] as well as through the target resource.
+    -- Leave this on unless your server deliberately routes everything through
+    -- targeting: a prompt that names a key which does nothing is worse than
+    -- no prompt.
+    keyInteract = true,
     -- Brand colours, handed to the NUI. Change once, the whole UI follows.
     theme = {
         mango  = '#F5A623',
