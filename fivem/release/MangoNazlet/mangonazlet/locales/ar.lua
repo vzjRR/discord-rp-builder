@@ -196,6 +196,9 @@ MN.Locales.ar = {
     category_scoop  = 'كرات',
     category_ingredient = 'مكونات',
 
+    where_set       = 'حددت موقع مانجو نزلة على خريطتك.',
+    where_help      = 'يحدد موقع مانجو نزلة على الخريطة',
+
     price_list      = 'قائمة الأسعار',
     currency        = '$',
     seconds_short   = 'ث',

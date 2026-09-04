@@ -470,10 +470,16 @@ end
 -- in whatever language that particular player is running.
 -- ═══════════════════════════════════════════════════════════════
 
----@param src number
+---@param src number   -- 0 or nil means the server console
 ---@param key string
 ---@param kind? 'inform'|'success'|'error'|'warning'
 function MN.notify(src, key, kind, ...)
+    -- Commands can be run from the server console, where there is no client to
+    -- notify. Print there instead, so console output is not silently dropped.
+    if not src or src == 0 then
+        MN.print('%s', T(key, ...))
+        return
+    end
     TriggerClientEvent('mangonazlet:client:notify', src, key, kind or 'inform', { ... })
 end
 

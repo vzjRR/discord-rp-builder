@@ -198,6 +198,9 @@ MN.Locales.en = {
     category_scoop  = 'Scoops',
     category_ingredient = 'Ingredients',
 
+    where_set       = 'Waypoint set to MangoNazlet on your map.',
+    where_help      = 'Put a waypoint on MangoNazlet',
+
     price_list      = 'Price list',
     currency        = '$',
     seconds_short   = 's',

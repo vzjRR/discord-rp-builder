@@ -353,6 +353,13 @@ CreateThread(function()
     MN.print('^2ready^7 — %d products, %d recipes, balance $%s',
         #Products.all, MN.count(Recipes.byId), MN.money(MN.business.balance()))
 
+    -- Where to actually go. Printed every start because "I cannot find it" is
+    -- the first thing anyone hits on a fresh install.
+    local centre = Locations.shop.centre
+    MN.print('shop is at %.1f, %.1f, %.1f — players can type /mn:where for a waypoint',
+        centre.x, centre.y, centre.z)
+    MN.print('to staff yourself: run  mn:setjob <id> 5  in THIS console (no slash)')
+
     if #problems == 0 then
         report[#report + 1] = ('%d products, %d recipes, configuration OK'):format(#Products.all, MN.count(Recipes.byId))
     end

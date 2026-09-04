@@ -152,6 +152,19 @@ if Config.Melting.enabled then
 end
 
 -- ═══════════════════════════════════════════════════════════════
+-- /mn:where — put a waypoint on the shop
+-- Open to everyone: finding the restaurant is not an admin action.
+-- ═══════════════════════════════════════════════════════════════
+
+RegisterCommand('mn:where', function()
+    local centre = Locations.shop.centre
+    SetNewWaypoint(centre.x, centre.y)
+    MN.notify(T('where_set'), 'success')
+end, false)
+
+TriggerEvent('chat:addSuggestion', '/mn:where', T('where_help'))
+
+-- ═══════════════════════════════════════════════════════════════
 -- Standalone economy hook
 -- ═══════════════════════════════════════════════════════════════
 
