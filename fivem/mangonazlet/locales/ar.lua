@@ -7,11 +7,11 @@ MN.Locales = MN.Locales or {}
 MN.Locales.ar = {
     dir = 'rtl',
 
-    brand = 'مانجو نزلة',
+    brand = 'مانجو نزلت',
     tagline = 'مثلجات بطعم الصيف الحقيقي',
 
     -- الوصول
-    not_employee    = 'أنت لا تعمل في مانجو نزلة.',
+    not_employee    = 'أنت لا تعمل في مانجو نزلت.',
     not_on_duty     = 'سجّل دوامك قبل ما تبدأ.',
     no_permission   = 'رتبتك ما تسمح بهذا.',
     too_far         = 'ابتعدت عن المكان.',
@@ -46,9 +46,9 @@ MN.Locales.ar = {
 
     -- التخزين
     storage_target  = 'الفريزر',
-    storage_label   = 'فريزر مانجو نزلة',
+    storage_label   = 'فريزر مانجو نزلت',
     storage_ing     = 'مخزن المكونات',
-    storage_ing_lbl = 'مكونات مانجو نزلة',
+    storage_ing_lbl = 'مكونات مانجو نزلت',
 
     -- الكاشير
     register_target = 'الكاشير',
@@ -92,8 +92,8 @@ MN.Locales.ar = {
     order_value     = 'قيمة الطلب $%s',
 
     -- المتجر
-    shop_target     = 'اطلب من مانجو نزلة',
-    shop_closed     = 'مانجو نزلة مغلق حاليًا.',
+    shop_target     = 'اطلب من مانجو نزلت',
+    shop_closed     = 'مانجو نزلت مغلق حاليًا.',
     shop_empty      = 'هذا المنتج نفد.',
     shop_bought     = 'بالهنا: %sx %s — $%s',
     shop_cart       = 'السلة',
@@ -114,7 +114,7 @@ MN.Locales.ar = {
 
     -- الإدارة
     boss_target     = 'مكتب الإدارة',
-    boss_title      = 'إدارة مانجو نزلة',
+    boss_title      = 'إدارة مانجو نزلت',
     boss_balance    = 'رصيد المحل',
     boss_deposit    = 'إيداع',
     boss_withdraw   = 'سحب',
@@ -149,7 +149,7 @@ MN.Locales.ar = {
     supply_run      = 'جولة توريد',
     supply_run_go   = 'بدأت الجولة. اجمع %s شحنات.',
     supply_run_got  = 'حمّلت شحنة (%s/%s)',
-    supply_run_back = 'ارجع لمانجو نزلة وفرّغ الحمولة.',
+    supply_run_back = 'ارجع لمانجو نزلت وفرّغ الحمولة.',
     supply_run_done = 'أنهيت الجولة، ربحت $%s',
     supply_run_busy = 'عندك جولة شغالة.',
     supply_run_wait = 'الجولة الجاية بعد %s دقيقة.',
@@ -178,7 +178,7 @@ MN.Locales.ar = {
     melt_warning    = 'المثلجات بدأت تذوب، بعها أو حطها بالفريزر.',
     melt_ruined     = 'هذا ذاب من زمان، ما عاد صالح.',
 
-    paycheck        = 'راتب مانجو نزلة: $%s',
+    paycheck        = 'راتب مانجو نزلت: $%s',
 
     stats_title     = 'الإحصائيات',
     stats_today     = 'مبيعات اليوم',
@@ -195,8 +195,8 @@ MN.Locales.ar = {
     category_scoop  = 'كرات',
     category_ingredient = 'مكونات',
 
-    where_set       = 'حددت موقع مانجو نزلة على خريطتك.',
-    where_help      = 'يحدد موقع مانجو نزلة على الخريطة',
+    where_set       = 'حددت موقع مانجو نزلت على خريطتك.',
+    where_help      = 'يحدد موقع مانجو نزلت على الخريطة',
 
     price_list      = 'قائمة الأسعار',
     currency        = '$',

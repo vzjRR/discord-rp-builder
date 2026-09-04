@@ -72,6 +72,7 @@ end
 RegisterNetEvent('mangonazlet:client:placements', function(placements)
     Locations.applyOverrides(placements)
     createBlip()
+    -- Zones and the physical build both listen for this and follow the anchors.
     TriggerEvent('mangonazlet:client:relocated')
 end)
 

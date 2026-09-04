@@ -23,6 +23,7 @@ dofile('config/permissions.lua')
 dofile('config/products.lua')
 dofile('config/recipes.lua')
 dofile('config/locations.lua')
+dofile('config/props.lua')
 dofile('shared/locale.lua')
 dofile('shared/utils.lua')
 
@@ -553,6 +554,96 @@ check('the key prompt only runs frame-accurate while on a point',
 
 check('targets and prompt are cleaned up on stop',
     zonesSource:find('onResourceStop') ~= nil and zonesSource:find('clearTargets') ~= nil)
+
+-- ═══════════════════════════════════════════════════════════════
+group('the physical shop')
+-- ═══════════════════════════════════════════════════════════════
+
+-- The shop shipped as interaction points on empty grass: prompts appeared and
+-- there was visibly no restaurant. These assert there is something to see.
+check('a build is defined', Props.enabled == true and Props.count() > 0)
+
+check('every interaction anchor that should carry a prop does', (function()
+    -- The places a player walks up to must not be bare.
+    local mustHaveProp = {
+        'counter', 'register', 'display', 'churn', 'assembly',
+        'blender', 'oven', 'freezer', 'pantry', 'supply', 'office', 'duty',
+    }
+    for _, anchor in ipairs(mustHaveProp) do
+        if not Props.anchored[anchor] then
+            print(('        no prop on anchor: %s'):format(anchor))
+            return false
+        end
+    end
+    return true
+end)())
+
+check('every anchored prop targets a real anchor', (function()
+    for anchor in pairs(Props.anchored) do
+        if not (Locations.shop[anchor] or Locations.station(anchor)) then
+            print(('        prop on unknown anchor: %s'):format(anchor))
+            return false
+        end
+    end
+    return true
+end)())
+
+check('every prop names a model', (function()
+    for _, definition in pairs(Props.anchored) do
+        if type(definition.model) ~= 'string' or definition.model == '' then return false end
+    end
+    for _, definition in ipairs(Props.decor) do
+        if type(definition.model) ~= 'string' or definition.model == '' then return false end
+    end
+    for _, definition in ipairs(Props.onCounter) do
+        if type(definition.model) ~= 'string' or definition.model == '' then return false end
+    end
+    return true
+end)())
+
+check('every counter-top prop stands on a real anchor', (function()
+    for _, definition in ipairs(Props.onCounter) do
+        if not Locations.shop[definition.anchor] then return false end
+    end
+    return true
+end)())
+
+check('decor offsets are vectors', (function()
+    for _, definition in ipairs(Props.decor) do
+        local offset = definition.offset
+        if type(offset) ~= 'table' or not offset.x or not offset.y or not offset.z then
+            return false
+        end
+    end
+    return true
+end)())
+
+check('only vanilla GTA props are used', (function()
+    -- Anything not starting prop_ would need a stream folder, which defeats
+    -- the point of a build that works on a stock server.
+    local function vanilla(model) return model:sub(1, 5) == 'prop_' end
+    for _, d in pairs(Props.anchored) do if not vanilla(d.model) then return false end end
+    for _, d in ipairs(Props.decor) do if not vanilla(d.model) then return false end end
+    for _, d in ipairs(Props.onCounter) do if not vanilla(d.model) then return false end end
+    return true
+end)())
+
+local propsSource = assert(io.open('client/props.lua')):read('a')
+
+check('props are cleaned up on resource stop',
+    propsSource:find('onResourceStop') ~= nil and propsSource:find('teardown') ~= nil)
+
+check('props rebuild when the shop is relocated',
+    propsSource:find("mangonazlet:client:relocated") ~= nil)
+
+check('the build only exists while a player is near',
+    propsSource:find('renderDistance') ~= nil)
+
+check('the shop sign shows the brand name',
+    propsSource:find("T%('brand'%)") ~= nil)
+
+check('the Arabic brand name is مانجو نزلت', MN.Locales.ar.brand == 'مانجو نزلت')
+check('the English brand name is MangoNazlet', MN.Locales.en.brand == 'MangoNazlet')
 
 -- ═══════════════════════════════════════════════════════════════
 print(('\n%s\n  %d passed, %d failed\n'):format(string.rep('─', 46), pass, fail))

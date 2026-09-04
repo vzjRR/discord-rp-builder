@@ -29,7 +29,7 @@ Locations.anchors = {
 
 Locations.shop = {
     id = 'vespucci',
-    label = { en = 'MangoNazlet — Vespucci', ar = 'مانجو نزلة — فيسبوتشي' },
+    label = { en = 'MangoNazlet — Vespucci', ar = 'مانجو نزلت — فيسبوتشي' },
     centre = vec3(-1223.50, -1576.90, 4.61),
 
     blip = {

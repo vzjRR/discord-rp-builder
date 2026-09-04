@@ -167,6 +167,10 @@ Config.UI = {
     -- targeting: a prompt that names a key which does nothing is worse than
     -- no prompt.
     keyInteract = true,
+    -- Draw the shop's name over the counter. No GTA prop can carry it, so this
+    -- is what puts the name on the building.
+    sign = true,
+    signDistance = 22.0,
     -- Brand colours, handed to the NUI. Change once, the whole UI follows.
     theme = {
         mango  = '#F5A623',

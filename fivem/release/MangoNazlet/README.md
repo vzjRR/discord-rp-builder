@@ -49,7 +49,9 @@ list, or a coordinate to get it running.
 | **Payroll** | Paid from the business balance on a timer |
 | **Melting** | Ice cream loses value over time and is worthless once it has melted |
 | **Discord logging** | Money, staff changes and rejected requests |
-| **Two languages** | Arabic (default) and English, including full RTL |
+| **Two languages** | Arabic (مانجو نزلت) and English (MangoNazlet), including full RTL |
+| **Built from vanilla props** | A visible shop — no MLO, no stream folder, no downloads |
+| **No target resource needed** | Every interaction also answers `[E]` |
 
 ---
 
@@ -231,9 +233,16 @@ scoop* can never satisfy both from one item.
 
 ## Moving the shop
 
-The default placement is an open-air kiosk on the Vespucci boardwalk. It was
-chosen because it needs **no MLO** — it is walkable on a stock server, so the
-shop works the moment you start it.
+The shop is built from props that ship with GTA V — counters, a churn machine,
+fridges, a display case, parasols and seating — spawned client-side on the
+Vespucci boardwalk, with the name drawn above the counter. It needs **no MLO,
+no stream folder and no downloads**, so there is a real, visible restaurant on
+a stock server the moment you start it.
+
+Every model was checked against the game's own object list, and one a
+particular build lacks is skipped with a warning rather than breaking the rest.
+If you have your own MLO, set `Props.enabled = false` in `config/props.lua` to
+keep only the interaction points.
 
 To put it somewhere else, you still do not edit a file. In game, as an admin:
 
