@@ -1,43 +1,58 @@
-# 🎮 قسم FiveM
+# 🎮 FiveM
 
-هذا القسم مستقل تمامًا عن بوتات Discord في جذر المستودع — لا يشترك معها في
-`package.json` ولا في متغيرات البيئة. موارد Lua تُنسخ لسيرفر FiveM.
+Lua resources for a FiveM server. Independent of the Discord bots at the repo
+root — no shared `package.json`, no shared environment.
 
-## المحتويات
-
-| المجلد | الوصف |
+| Path | What it is |
 |---|---|
-| [`PLAN.md`](PLAN.md) | خطة المشروع: البحث في معايير FiveM، المعمارية، الميزات، خارطة التنفيذ |
-| [`enclave_icecream/`](enclave_icecream/) | 🍦 مورد مطعم/محل المثلجات — وظيفة كاملة قابلة للعب |
+| [`mangonazlet/`](mangonazlet/) | 🥭 **MangoNazlet** — ice cream & dessert restaurant job |
+| [`release/MangoNazlet/`](release/) | Ready-to-copy installation package |
+| [`PLAN.md`](PLAN.md) | Research into FiveM resource standards and the architecture chosen from it |
 
-## enclave_icecream باختصار
+---
 
-مورد وظيفة لمحل مثلجات: تصنيع بمكونات حقيقية على 4 محطات، طلبات زبائن NPC،
-كاشير وفوترة، توريد بالجملة وجولات شاحنة، عربة مثلجات متنقلة، حساب شركة
-ومنيو بوس، رواتب دورية، ونظام ذوبان يخفّض قيمة المثلجات مع الوقت.
+## MangoNazlet
 
-- **يشتغل على:** Qbox • QBCore • ESX • standalone
-- **يتطلب:** `ox_lib` (إلزامي) — و`ox_inventory` + `ox_target` + `oxmysql` (موصى بها بشدة)
-- **دليل التركيب من الألف للياء:** [`enclave_icecream/README.md`](enclave_icecream/README.md)
+An ice cream restaurant run as a real business: staff churn product from
+ingredients at four stations, stock a display case, serve walk-in customers
+through a branded ordering menu, work NPC tickets, run a supply van and a
+mobile truck. Sales split between a business account and employee tips, and
+payroll comes out of the balance.
+
+**Runs on:** Qbox · QBCore · ESX · standalone — detected at runtime
+**Requires:** `ox_lib` · strongly recommends `ox_inventory`, `ox_target`, `oxmysql`
+
+### Install
 
 ```
-resources/[jobs]/enclave_icecream/     ← انسخ المجلد هنا
+resources/[jobs]/mangonazlet/
 ```
 
 ```cfg
-# server.cfg — الترتيب مهم
 ensure oxmysql
 ensure ox_lib
 ensure ox_inventory
 ensure ox_target
-ensure qbx_core
-ensure enclave_icecream
+ensure qbx_core          # or qb-core / es_extended, or none
+ensure mangonazlet       # always after ox_lib
 ```
 
-## التوثيق
+Restart. The resource creates its own database tables, registers its job with
+your framework and installs its items into your inventory. There is nothing to
+edit — no item list, no job list, no coordinates.
 
-- [دليل الاستخدام الكامل](enclave_icecream/README.md) — تركيب، لعب، إعداد، أمان
-- [التركيب حسب الفريمويرك](enclave_icecream/docs/INSTALL.md)
-- [شرح كل خيار في الإعدادات](enclave_icecream/docs/CONFIG.md)
-- [الأحداث والـ callbacks والـ exports](enclave_icecream/docs/API.md)
-- [حل المشاكل](enclave_icecream/docs/TROUBLESHOOTING.md)
+### Documentation
+
+- [Full documentation](mangonazlet/README.md) — features, config, exports, security
+- [Installation, per framework](mangonazlet/docs/installation.md)
+- [Administration](mangonazlet/docs/admin.md) — commands, moving the shop, queries
+- [Test matrix](mangonazlet/docs/testing.md) — what was verified and how
+
+### Tests
+
+```bash
+cd mangonazlet && lua5.4 tests/harness.lua
+```
+
+84 assertions over the real config and the real crafting, melting and
+validation code.

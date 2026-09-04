@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MangoNazlet</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="root" class="hidden" aria-hidden="true">
+        <div class="shell" role="dialog" aria-modal="true" aria-labelledby="brand">
+
+            <header class="head">
+                <div class="mark" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" width="44" height="44">
+                        <path d="M24 5c7 0 13 5 13 12 0 3-1 5-2 7H13c-1-2-2-4-2-7 0-7 6-12 13-12z" fill="var(--mango)"/>
+                        <path d="M24 5c4 0 7 5 7 12 0 3 0 5-1 7h-6c-1-2-1-4-1-7 0-7 0-12 1-12z" fill="var(--deep)" opacity=".55"/>
+                        <path d="M14 26h20l-8 16a2 2 0 0 1-4 0z" fill="var(--cream)"/>
+                        <path d="M14 26h20l-1.6 3.2H15.6z" fill="var(--deep)" opacity=".35"/>
+                        <path d="M28 8c2-3 5-4 8-3-1 3-3 5-6 5z" fill="var(--leaf)"/>
+                    </svg>
+                </div>
+                <div class="title">
+                    <h1 id="brand">MangoNazlet</h1>
+                    <p id="tagline"></p>
+                </div>
+                <button id="close" class="close" type="button" aria-label="Close">
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"
+                              stroke-linecap="round" fill="none"/>
+                    </svg>
+                </button>
+            </header>
+
+            <nav class="tabs" id="tabs" role="tablist"></nav>
+
+            <main class="body">
+                <section class="catalogue" id="catalogue" role="tabpanel" aria-live="polite"></section>
+
+                <aside class="cart">
+                    <h2 id="cart-title"></h2>
+
+                    <ul class="lines" id="lines"></ul>
+                    <p class="empty" id="cart-empty"></p>
+
+                    <div class="pay">
+                        <span id="pay-label"></span>
+                        <div class="methods" id="methods" role="radiogroup"></div>
+                    </div>
+
+                    <div class="total">
+                        <span id="total-label"></span>
+                        <strong id="total-value">$0</strong>
+                    </div>
+
+                    <button id="checkout" class="checkout" type="button" disabled></button>
+                </aside>
+            </main>
+
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

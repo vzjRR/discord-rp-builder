@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════════════════
+#  MangoNazlet — add these lines to your server.cfg
+# ═══════════════════════════════════════════════════════════════
+#
+#  Order matters. ox_lib must start BEFORE mangonazlet, or the
+#  resource will refuse to start.
+#
+#  Lines you already have can be left as they are — this is only
+#  showing the required order.
+
+ensure oxmysql
+ensure ox_lib
+ensure ox_inventory
+ensure ox_target
+
+# your framework, if you run one
+ensure qbx_core            # or: ensure qb-core   /   ensure es_extended
+
+# MangoNazlet — always after ox_lib
+ensure mangonazlet
+
+
+# ── Optional: Discord logging ──────────────────────────────────
+#  Setting the webhook here keeps it out of the resource files.
+#  Remove the leading # and paste your webhook URL.
+#
+# set mangonazlet_webhook "https://discord.com/api/webhooks/XXXX/YYYY"
+
+
+# ── Optional: give yourself admin so /mn:setjob and /mn:place work ──
+#  Replace the identifier with your own.
+#
+# add_principal identifier.license:YOUR_LICENSE_HERE group.admin
