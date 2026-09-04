@@ -3,17 +3,21 @@
 # panel (and usually Enclave-RP-Store too) — the same box described in
 # deploy/enclave-panel/EXISTING-SERVER.md and deploy/bots-combined/EXISTING-SERVER.md.
 #
-# Unlike deploy/bots-combined/install-on-existing-server.sh (the "Enclave"
-# welcome/tracking bot), this bot is a DIFFERENT Discord application —
-# EN-Censorship (app id 1544434302308319293) — not the same bot token as
-# the panel or the store. It has its own secrets file and its own systemd
-# unit. What it DOES share with the panel: the `enclave-admin` Linux user
-# and the /opt/enclave-admin checkout + data/ folder, because points.db
-# must be readable AND writable by both processes (the bot counts image
-# messages automatically; the panel's "points.manage" permission writes
-# manual adjustments/resets directly into the same file — there's no REST
-# bridge between the two, same reasoning as server-events.db in
-# bots-combined). WAL mode makes that safe.
+# Like deploy/bots-combined/install-on-existing-server.sh (the "Enclave"
+# welcome/tracking bot), this bot uses the SAME Discord application/token as
+# the panel and welcome-bot (app id 1535663542420643880) -- Discord allows
+# one bot token to power multiple simultaneous gateway connections, so
+# there's no conflict. It gets its own secrets file and its own systemd
+# unit anyway (so it can be restarted/stopped independently), but the
+# DISCORD_TOKEN value inside should be copied from /etc/enclave-admin-bot.env
+# (or any other file using the same Enclave application). What it also
+# shares with the panel: the `enclave-admin` Linux user and the
+# /opt/enclave-admin checkout + data/ folder, because points.db must be
+# readable AND writable by both processes (the bot counts image messages
+# automatically; the panel's "points.manage" permission writes manual
+# adjustments/resets directly into the same file -- there's no REST bridge
+# between the two, same reasoning as server-events.db in bots-combined).
+# WAL mode makes that safe.
 #
 # This bot needs zero Discord server-management permissions and no
 # privileged intent beyond MESSAGE CONTENT (to read attachments/embeds on
@@ -94,13 +98,22 @@ chown -R "$ENCLAVE_USER:$ENCLAVE_USER" "$ENCLAVE_DATA"
 chmod 750 "$ENCLAVE_DATA"
 
 # DISCORD_TOKEN can be pre-supplied by exporting it before running this
-# script (DISCORD_TOKEN='...' bash <(curl ...)) so the whole install is one
-# command with no manual nano step. Never printed or logged anywhere below.
+# script (DISCORD_TOKEN='...' bash <(curl ...)). If it's not supplied, fall
+# back to copying it from the existing Enclave-bot secrets file, since this
+# bot uses the same application/token as welcome-bot/logs-bot/the panel --
+# no separate Discord application needed. Never printed or logged below.
+if [[ -z "${DISCORD_TOKEN:-}" && -f /etc/enclave-admin-bot.env ]]; then
+  DISCORD_TOKEN="$(grep -oP '^DISCORD_TOKEN=\K\S+' /etc/enclave-admin-bot.env || true)"
+  [[ -n "$DISCORD_TOKEN" ]] && log "No DISCORD_TOKEN supplied -- reusing the one from /etc/enclave-admin-bot.env (same Enclave application)"
+fi
+
 if [[ ! -f "$POINTS_ENV" ]]; then
   cat > "$POINTS_ENV" <<EOF
-# points-bot secrets. This is a DIFFERENT Discord application than the
-# panel/store/Enclave-bot token above -- EN-Censorship (app id
-# 1544434302308319293). Do NOT reuse the panel's DISCORD_TOKEN here.
+# points-bot secrets. Uses the SAME Discord application/token as
+# welcome-bot/logs-bot/the panel (app id 1535663542420643880) -- Discord
+# allows one bot token to run several gateway connections at once, so this
+# is expected, not a bug. Kept in its own file so this service can be
+# restarted independently of the others.
 
 DISCORD_TOKEN=${DISCORD_TOKEN:-}
 IMAGE_POINTS_CHANNEL_ID=1535680167576608910
@@ -135,7 +148,7 @@ runuser -u "$ENCLAVE_USER" -- bash -c "cd '$ENCLAVE_DIR/points-bot' && npm insta
 log "Installing enclave-points-bot.service"
 cat > /etc/systemd/system/enclave-points-bot.service <<EOF
 [Unit]
-Description=Enclave image-points bot (EN-Censorship)
+Description=Enclave image-points bot
 After=network-online.target
 Wants=network-online.target
 StartLimitBurst=5
@@ -187,9 +200,11 @@ systemctl daemon-reload
 log "Done. No firewall rule was touched -- the bot doesn't need one (no inbound port)."
 
 if grep -q '^DISCORD_TOKEN=$' "$POINTS_ENV"; then
-  TOKEN_STEP="  1. Fill in the bot token (its OWN application, not the panel's):
+  TOKEN_STEP="  1. DISCORD_TOKEN is empty in ${POINTS_ENV} -- copy it from the
+     existing Enclave bot's secrets, e.g.:
 
-       nano ${POINTS_ENV}
+       TOKEN=\$(grep -oP '^DISCORD_TOKEN=\K\S+' /etc/enclave-admin-bot.env)
+       sed -i \"s|^DISCORD_TOKEN=.*|DISCORD_TOKEN=\${TOKEN}|\" ${POINTS_ENV}
 "
 else
   TOKEN_STEP="  1. DISCORD_TOKEN is already set in ${POINTS_ENV} -- nothing to fill in.
@@ -201,9 +216,10 @@ cat <<DONE
 Remaining steps:
 
 ${TOKEN_STEP}
-  2. In the Discord Developer Portal for that application (1544434302308319293):
-     Bot -> Privileged Gateway Intents -> enable MESSAGE CONTENT INTENT.
-     Without it, attachments/embeds never reach the bot on non-bot messages.
+  2. Message Content Intent: this bot shares the Enclave application, and
+     logs-bot already requires MESSAGE CONTENT INTENT on it, so it's likely
+     already enabled. Double check under Discord Developer Portal -> your
+     Enclave application -> Bot -> Privileged Gateway Intents if unsure.
 
   3. Start it:
 

@@ -53,7 +53,8 @@ points-bot/
 
 راجع `.env.example`. أهمها:
 
-- `DISCORD_TOKEN` — نفس تطبيق ديسكورد `1544434302308319293` (EN-Censorship)
+- `DISCORD_TOKEN` — نفس توكن تطبيق Enclave (`1535663542420643880`) المستخدم
+  بـ `welcome-bot`/`logs-bot`/`admin-panel` — لا تطبيق منفصل
 - `IMAGE_POINTS_CHANNEL_ID` — القناة الوحيدة المراقَبة (افتراضيًا `1535680167576608910`)
 - `POINTS_DB_PATH` أو `EVENTS_DB_PATH` — مكان قاعدة البيانات
 - `AUDIT_LOG_FILE_PATH` — ملف السجل الدائم المشترك مع بقية البوتات والمنصة
@@ -69,13 +70,14 @@ npm start
 ```
 
 يحتاج تفعيل **Message Content Intent** من Discord Developer Portal → Bot
-(بدونها attachments/embeds ما توصل مع أحداث رسائل أعضاء غير-بوت).
+(بدونها attachments/embeds ما توصل مع أحداث رسائل أعضاء غير-بوت). بما إنه
+نفس تطبيق `logs-bot` وهو أصلًا يحتاج نفس الصلاحية، غالبًا مفعّلة سلفًا.
 
 ## النشر على السيرفر
 
-راجع `deploy/bots-combined/` بجذر المستودع — يشارك نفس مستخدم/مجلد المنصة
-(`enclave-admin` / `/opt/enclave-admin`) بوحدة systemd خاصة به، بدون أي منفذ
-مطلوب (بوت gateway فقط، لا HTTP).
+راجع `deploy/points-bot/` بجذر المستودع — يشارك نفس مستخدم/مجلد المنصة
+(`enclave-admin` / `/opt/enclave-admin`) ونفس `DISCORD_TOKEN` بوحدة systemd
+خاصة به، بدون أي منفذ مطلوب (بوت gateway فقط، لا HTTP).
 
 ## التكامل مع admin-panel
 

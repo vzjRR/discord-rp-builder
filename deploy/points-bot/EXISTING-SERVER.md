@@ -7,25 +7,27 @@
 ويريد إضافة بوت نقاط الصور على نفس الخادم. كل شيء على صندوق واحد، وبلا
 حاجة لخادم ثانٍ إطلاقًا.
 
-## هذا تطبيق ديسكورد مختلف تمامًا
+## هذا نفس تطبيق Enclave — ليس تطبيقًا منفصلًا
 
-⚠️ **بوت نقاط الصور ليس نفس بوت Enclave.** المتجر والمنصة وبوت Enclave
-(`welcome-bot`) يتشاركون `DISCORD_TOKEN` واحد. بوت نقاط الصور تطبيق ديسكورد
-منفصل بالكامل — **EN-Censorship** (App ID `1544434302308319293`) — بتوكنه
-الخاص. لا تضع توكن الـ Enclave هنا، ولا العكس.
+بوت نقاط الصور **يستخدم نفس `DISCORD_TOKEN`** المستخدم بـ `welcome-bot`/
+`logs-bot`/المنصة (تطبيق Enclave، App ID `1535663542420643880`) — نفس ما
+يفعله `bots-combined`. Discord يسمح لتوكن واحد يشغّل عدة اتصالات gateway
+بالتوازي، فما فيه أي تعارض. لا يحتاج تطبيق ديسكورد جديد ولا توكن جديد.
 
 | | المتجر (موجود) | المنصة (إن نُشرت) | بوت Enclave (إن نُشر) | بوت نقاط الصور (يضيفه هذا السكربت) |
 |---|---|---|---|---|
-| تطبيق ديسكورد | Enclave-RP-Store | نفس تطبيق Enclave | نفس تطبيق Enclave | **EN-Censorship (منفصل)** |
+| تطبيق ديسكورد | Enclave-RP-Store | نفس تطبيق Enclave | نفس تطبيق Enclave | **نفس تطبيق Enclave** |
 | المستخدم | `enclave` | `enclave-admin` | `enclave-admin` | `enclave-admin` (**نفسه**) |
 | المجلد | `/opt/enclave/app` | `/opt/enclave-admin` | `/opt/enclave-admin/welcome-bot` | `/opt/enclave-admin/points-bot` |
-| ملف الأسرار | `/etc/enclave.env` | `/etc/enclave-admin.env` | `/etc/enclave-admin-bot.env` | `/etc/enclave-points-bot.env` |
+| ملف الأسرار | `/etc/enclave.env` | `/etc/enclave-admin.env` | `/etc/enclave-admin-bot.env` | `/etc/enclave-points-bot.env` (**نفس `DISCORD_TOKEN`**) |
 | خدمة systemd | `enclave.service` | `enclave-admin-panel.service` | `enclave-admin-bot.service` | `enclave-points-bot.service` |
 
-بوت نقاط الصور يشارك مع المنصة **المستخدم والمجلد ومجلد البيانات فقط** —
+بوت نقاط الصور يشارك مع المنصة **المستخدم والمجلد ومجلد البيانات** —
 عشان `points.db` يقدر كل من البوت (كتابة تلقائية عند كل رسالة فيها صورة)
 والمنصة (كتابة يدوية عند تعديل/تصفير نقاط من صلاحية `points.manage`) يوصلون
-لنفس الملف مباشرة. لا يشارك التوكن ولا يشارك أي صلاحية إدارة سيرفر.
+لنفس الملف مباشرة. ملف الأسرار منفصل عن `/etc/enclave-admin-bot.env` (خدمة
+systemd خاصة بها، تُدار وتُعاد تشغيلها لحالها) لكن قيمة `DISCORD_TOKEN`
+بداخله نفس القيمة.
 
 **السكربت لا يلمس الجدار الناري إطلاقًا**، ولا يفتح البوت منفذًا واردًا
 (البوت gateway فقط — لا يحتاج HTTP على الإطلاق ما لم تنشره على PaaS).
@@ -38,17 +40,22 @@ sudo -i
 bash <(curl -fsSL https://raw.githubusercontent.com/vzjRR/discord-rp-builder/master/deploy/points-bot/install-on-existing-server.sh)
 ```
 
-**١) املأ ملف الأسرار (توكن EN-Censorship، ليس توكن Enclave):**
+**١) املأ ملف الأسرار — نفس `DISCORD_TOKEN` المستخدم بـ `enclave-admin-bot.env`:**
 
 ```bash
-nano /etc/enclave-points-bot.env
+TOKEN=$(grep -oP '^DISCORD_TOKEN=\K\S+' /etc/enclave-admin-bot.env)
+sed -i "s|^DISCORD_TOKEN=.*|DISCORD_TOKEN=${TOKEN}|" /etc/enclave-points-bot.env
 ```
 
-**٢) فعّل الصلاحية المميّزة المطلوبة:**
+(لو `enclave-admin-bot.env` غير موجود على هذا الخادم، انسخه من أي ملف أسرار
+آخر بنفس تطبيق Enclave — `/etc/enclave-admin.env` أو
+`/opt/enclave-admin/logs-bot/.env` كلاهما بنفس التوكن.)
 
-في https://discord.com/developers/applications → تطبيق `1544434302308319293`
-→ **Bot** → Privileged Gateway Intents → فعّل **MESSAGE CONTENT INTENT** ✅.
-بدونها attachments/embeds ما توصل مع أحداث رسائل الأعضاء (غير-بوت) إطلاقًا.
+**٢) الصلاحية المميّزة المطلوبة:**
+
+بما إن `logs-bot` بنفس التطبيق يحتاج أصلًا **MESSAGE CONTENT INTENT**، غالبًا
+مفعّلة سلفًا. تأكد فقط من https://discord.com/developers/applications →
+تطبيق `1535663542420643880` → **Bot** → Privileged Gateway Intents.
 
 **٣) شغّله:**
 
