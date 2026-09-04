@@ -93,13 +93,16 @@ mkdir -p "$ENCLAVE_DATA"
 chown -R "$ENCLAVE_USER:$ENCLAVE_USER" "$ENCLAVE_DATA"
 chmod 750 "$ENCLAVE_DATA"
 
+# DISCORD_TOKEN can be pre-supplied by exporting it before running this
+# script (DISCORD_TOKEN='...' bash <(curl ...)) so the whole install is one
+# command with no manual nano step. Never printed or logged anywhere below.
 if [[ ! -f "$POINTS_ENV" ]]; then
   cat > "$POINTS_ENV" <<EOF
 # points-bot secrets. This is a DIFFERENT Discord application than the
 # panel/store/Enclave-bot token above -- EN-Censorship (app id
 # 1544434302308319293). Do NOT reuse the panel's DISCORD_TOKEN here.
 
-DISCORD_TOKEN=
+DISCORD_TOKEN=${DISCORD_TOKEN:-}
 IMAGE_POINTS_CHANNEL_ID=1535680167576608910
 
 EVENTS_DB_PATH=${ENCLAVE_DATA}/server-events.db
@@ -112,7 +115,16 @@ ADJUST_POINTS_ON_MESSAGE_EDIT=true
 EOF
   chmod 600 "$POINTS_ENV"
   chown root:root "$POINTS_ENV"
-  log "Created $POINTS_ENV -- fill in DISCORD_TOKEN before starting the service"
+  if [[ -n "${DISCORD_TOKEN:-}" ]]; then
+    log "Created $POINTS_ENV with the supplied DISCORD_TOKEN"
+  else
+    log "Created $POINTS_ENV -- fill in DISCORD_TOKEN before starting the service"
+  fi
+elif [[ -n "${DISCORD_TOKEN:-}" ]] && grep -q '^DISCORD_TOKEN=$' "$POINTS_ENV"; then
+  # File exists from a previous run but the token was never filled in --
+  # patch just that line in place, don't touch anything else in the file.
+  sed -i "s|^DISCORD_TOKEN=\$|DISCORD_TOKEN=${DISCORD_TOKEN}|" "$POINTS_ENV"
+  log "$POINTS_ENV already existed -- filled in the supplied DISCORD_TOKEN, left everything else untouched"
 else
   log "$POINTS_ENV already exists -- left untouched"
 fi
@@ -173,14 +185,22 @@ EOF
 systemctl daemon-reload
 
 log "Done. No firewall rule was touched -- the bot doesn't need one (no inbound port)."
+
+if grep -q '^DISCORD_TOKEN=$' "$POINTS_ENV"; then
+  TOKEN_STEP="  1. Fill in the bot token (its OWN application, not the panel's):
+
+       nano ${POINTS_ENV}
+"
+else
+  TOKEN_STEP="  1. DISCORD_TOKEN is already set in ${POINTS_ENV} -- nothing to fill in.
+"
+fi
+
 cat <<DONE
 
 Remaining steps:
 
-  1. Fill in the bot token (its OWN application, not the panel's):
-
-       nano ${POINTS_ENV}
-
+${TOKEN_STEP}
   2. In the Discord Developer Portal for that application (1544434302308319293):
      Bot -> Privileged Gateway Intents -> enable MESSAGE CONTENT INTENT.
      Without it, attachments/embeds never reach the bot on non-bot messages.
@@ -192,5 +212,8 @@ Remaining steps:
        journalctl -u enclave-points-bot -f
 
 The store's, panel's, and Enclave-bot's services, users, ports, and
-firewall rules were not touched by any of this.
+firewall rules were not touched by any of this. If admin-panel is already
+running on this box, restart it too so it picks up the new /points page:
+
+       systemctl restart enclave-admin-panel
 DONE
