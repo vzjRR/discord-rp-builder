@@ -97,7 +97,7 @@ Locations.truckSpots = {
 -- Customer ped models used for tickets and truck queues.
 Locations.customerModels = {
     'a_f_y_beach_01', 'a_m_y_beach_01', 'a_m_y_beach_02',
-    'a_f_y_tourist_01', 'a_m_y_tourist_01', 'a_f_y_hipster_01',
+    'a_f_y_tourist_01', 'a_f_y_hipster_01', 'a_m_m_tourist_01',
     'a_m_y_hipster_01', 'a_f_m_beach_01', 'a_m_m_tourist_01',
     'a_f_y_genhot_01', 'a_m_y_genstreet_01', 'a_f_y_soucent_01',
 }
@@ -137,6 +137,62 @@ function Locations.coords(anchor)
     end
     if not entry then return nil end
     return entry.coords or entry.spawn or entry.stand
+end
+
+---Move the whole shop so its centre lands on `coords`, facing `heading`,
+---keeping every anchor's position relative to the others.
+---
+---This is what makes "put the shop over there" a single action instead of
+---fifteen. Each anchor is converted into shop-local space against the current
+---centre and heading, then written back out against the new ones.
+---@param coords vector3
+---@param heading number
+---@return table placements  -- { [anchor] = { x, y, z, w } }, ready to persist
+function Locations.relocate(coords, heading)
+    local shop = Locations.shop
+    local oldCentre = shop.centre
+    local oldHeading = (shop.counter and shop.counter.heading) or 0.0
+
+    local delta = math.rad(heading - oldHeading)
+    local cos, sin = math.cos(delta), math.sin(delta)
+
+    ---@param point vector3|vector4
+    ---@return table
+    local function move(point)
+        local dx, dy = point.x - oldCentre.x, point.y - oldCentre.y
+        return {
+            x = coords.x + (dx * cos - dy * sin),
+            y = coords.y + (dx * sin + dy * cos),
+            z = coords.z + (point.z - oldCentre.z),
+        }
+    end
+
+    local placements = {}
+
+    for i = 1, #Locations.anchors do
+        local anchor = Locations.anchors[i]
+        local entry = shop[anchor]
+        if entry then
+            local point = entry.coords or entry.spawn or entry.stand
+            if point then
+                local moved = move(point)
+                local ownHeading = entry.heading
+                    or (entry.spawn and entry.spawn.w)
+                    or (entry.stand and entry.stand.w)
+                moved.w = ((ownHeading or oldHeading) - oldHeading) + heading
+                placements[anchor] = moved
+            end
+        end
+    end
+
+    for i = 1, #shop.stations do
+        local station = shop.stations[i]
+        local moved = move(station.coords)
+        moved.w = (station.heading - oldHeading) + heading
+        placements[station.id] = moved
+    end
+
+    return placements
 end
 
 ---Apply placements loaded from the database over the defaults above.

@@ -266,7 +266,7 @@ local function registerCommands()
             -- Optional: a bare /mn:place should list the anchors, which it
             -- cannot do if ox_lib rejects the call for a missing argument.
             { name = 'anchor', type = 'string', optional = true,
-              help = 'anchor name, "list", or "reset" - omit to list' },
+              help = '"here" moves the whole shop, or an anchor name, "list", "reset"' },
         },
     }, function(source, args)
         -- The shop's Owner may reposition their own shop; only an admin can
@@ -284,11 +284,48 @@ local function registerCommands()
         local anchor = tostring(args.anchor or ''):lower()
 
         if anchor == 'list' or anchor == '' then
-            MN.print('placeable anchors: %s', table.concat(Locations.anchors, ', '))
+            MN.print('use "here" to move the whole shop; single anchors: %s',
+                table.concat(Locations.anchors, ', '))
             TriggerClientEvent('chat:addMessage', source, {
                 color = { 245, 166, 35 }, multiline = true,
-                args = { 'MangoNazlet', table.concat(Locations.anchors, ', ') },
+                args = { 'MangoNazlet', ('/mn:place here  moves the whole shop to you\nsingle anchors: %s')
+                    :format(table.concat(Locations.anchors, ', ')) },
             })
+            return
+        end
+
+        -- Move the entire shop to where the player stands, facing the way
+        -- they face. One action instead of placing fifteen anchors by hand.
+        if anchor == 'here' or anchor == 'all' or anchor == 'shop' then
+            if not MN.db.ready then
+                TriggerClientEvent('chat:addMessage', source, {
+                    color = { 231, 76, 60 },
+                    args = { 'MangoNazlet', 'A database is required to save placements.' },
+                })
+                return
+            end
+
+            local ped = GetPlayerPed(source)
+            local coords = GetEntityCoords(ped)
+            local heading = GetEntityHeading(ped)
+
+            local placements = Locations.relocate(coords, heading)
+
+            for name, point in pairs(placements) do
+                MN.db.savePlacement(Locations.shop.id, name, point.x, point.y, point.z, point.w or 0.0)
+            end
+
+            Locations.applyOverrides(placements)
+            GlobalState.mnPlacements = MN.db.loadPlacements(Locations.shop.id)
+            TriggerClientEvent('mangonazlet:client:placements', -1, placements)
+
+            TriggerClientEvent('chat:addMessage', source, {
+                color = { 245, 166, 35 }, multiline = true,
+                args = { 'MangoNazlet', ('Whole shop moved here: %.1f, %.1f, %.1f facing %.0f. %d anchors saved.')
+                    :format(coords.x, coords.y, coords.z, heading, MN.count(placements)) },
+            })
+            MN.print('shop relocated to %.2f, %.2f, %.2f (heading %.1f), %d anchors',
+                coords.x, coords.y, coords.z, heading, MN.count(placements))
             return
         end
 

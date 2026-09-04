@@ -52,6 +52,7 @@ list, or a coordinate to get it running.
 | **Two languages** | Arabic (مانجو نزلت) and English (MangoNazlet), including full RTL |
 | **Built from vanilla props** | A visible shop — no MLO, no stream folder, no downloads |
 | **No target resource needed** | Every interaction also answers `[E]` |
+| **Staffed** | NPC staff behind the counter and customers out front |
 
 ---
 
@@ -247,10 +248,23 @@ keep only the interaction points.
 To put it somewhere else, you still do not edit a file. In game, as an admin:
 
 ```
-/mn:place list        show every anchor you can move
-/mn:place freezer     save the freezer where you are standing
+/mn:place here        move the WHOLE shop to where you stand, facing your way
+/mn:place list        show every anchor you can move individually
+/mn:place freezer     save just the freezer where you are standing
 /mn:place reset       return to the defaults
 ```
+
+`here` is the one you want. Stand where the counter should be, face the way the
+shop should face, and run it: every anchor, station and prop moves as one rigid
+body, keeping the layout intact, and it is saved to the database immediately.
+Pick a real storefront on the map and the shop takes it over.
+
+**A note on interiors.** The build is exterior. A walkable indoor area with
+walls and a door is an MLO — a mapped interior — which is a mapping job, not a
+scripting one; props stacked into walls look wrong and players clip through
+them. If you install an ice cream MLO, stand inside it and run `/mn:place here`,
+then move individual anchors onto its counter and machines. MangoNazlet fits
+itself to the interior with no code changes.
 
 Placements are stored in the `mn_locations` table, applied live to everyone,
 and survive updates to the resource. The anchors are: `duty`, `register`,

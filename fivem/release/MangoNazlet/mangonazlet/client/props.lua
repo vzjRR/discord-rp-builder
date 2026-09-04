@@ -13,6 +13,7 @@
 MN = MN or {}
 
 local spawned = {}
+local staff = {}
 local built = false
 
 -- ═══════════════════════════════════════════════════════════════
@@ -86,6 +87,38 @@ end
 -- Build and teardown
 -- ═══════════════════════════════════════════════════════════════
 
+---Create one member of staff or a standing customer.
+---@param definition table
+---@param heading number  shop heading
+---@return number|nil ped
+local function placePed(definition, heading)
+    local hash = MN.loadModel(definition.model)
+    if not hash then return nil end
+
+    local coords = toWorld(definition.offset, heading)
+    local ped = CreatePed(4, hash, coords.x, coords.y, coords.z - 1.0,
+        heading + (definition.heading or 0.0), false, false)
+    SetModelAsNoLongerNeeded(hash)
+
+    if not DoesEntityExist(ped) then return nil end
+
+    -- Scenery, not participants: they never react, never flee, never take a hit.
+    SetEntityAsMissionEntity(ped, true, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedDiesWhenInjured(ped, false)
+    SetPedCanRagdollFromPlayerImpact(ped, false)
+    SetEntityInvincible(ped, true)
+    SetPedCanBeTargetted(ped, false)
+    FreezeEntityPosition(ped, true)
+
+    if definition.scenario then
+        TaskStartScenarioInPlace(ped, definition.scenario, 0, true)
+    end
+
+    staff[#staff + 1] = ped
+    return ped
+end
+
 local function teardown()
     for i = 1, #spawned do
         local object = spawned[i]
@@ -95,6 +128,16 @@ local function teardown()
         end
     end
     spawned = {}
+
+    for i = 1, #staff do
+        local ped = staff[i]
+        if ped and DoesEntityExist(ped) then
+            SetEntityAsMissionEntity(ped, true, true)
+            DeletePed(ped)
+        end
+    end
+    staff = {}
+
     built = false
 end
 
@@ -155,6 +198,20 @@ local function build()
 
             if object then placed = placed + 1 else missing = missing + 1 end
         end
+    end
+
+    -- 4. People, so the shop reads as open rather than as scenery.
+    if Props.staff and Props.staff.enabled then
+        local people = 0
+
+        for i = 1, #Props.staff.members do
+            if placePed(Props.staff.members[i], heading) then people = people + 1 end
+        end
+        for i = 1, #Props.staff.customers do
+            if placePed(Props.staff.customers[i], heading) then people = people + 1 end
+        end
+
+        MN.debug('%d people on shift', people)
     end
 
     MN.debug('shop built: %d props placed, %d unavailable', placed, missing)

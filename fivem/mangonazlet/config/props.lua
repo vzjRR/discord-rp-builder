@@ -108,6 +108,49 @@ Props.onCounter = {
     { anchor = 'display',  model = 'prop_food_bs_cups01', z = 1.02, side = -0.45, heading = 0.0 },
 }
 
+-- ═══════════════════════════════════════════════════════════════
+-- Staff on shift
+--
+-- A shop with nobody in it reads as scenery. These are decoration: they stand
+-- where staff would stand and do not replace real players, who serve customers
+-- through the counter and the register as before.
+--
+-- Every model name below is in the game's own ped list.
+-- ═══════════════════════════════════════════════════════════════
+Props.staff = {
+    enabled = true,
+
+    -- Offsets are in shop-local space, like Props.decor.
+    --   scenario  an ambient animation the ped loops
+    --   heading   extra rotation on top of the shop's own
+    members = {
+        {
+            model = 's_f_y_shop_mid',
+            offset = vec3(-0.9, -1.15, 0.0),
+            heading = 180.0,
+            scenario = 'WORLD_HUMAN_STAND_IMPATIENT',
+        },
+        {
+            model = 's_m_y_shop_mask',
+            offset = vec3( 0.9, -1.15, 0.0),
+            heading = 180.0,
+            scenario = 'WORLD_HUMAN_STAND_MOBILE',
+        },
+        {
+            model = 's_m_y_waiter_01',
+            offset = vec3( 2.6,  1.9, 0.0),
+            heading = 235.0,
+            scenario = 'WORLD_HUMAN_CLIPBOARD',
+        },
+    },
+
+    -- Customers milling about out front, so the place looks open.
+    customers = {
+        { model = 'a_f_y_beach_01',   offset = vec3(-2.1, 1.5, 0.0), heading = 20.0,  scenario = 'WORLD_HUMAN_STAND_MOBILE' },
+        { model = 'a_m_y_hipster_01', offset = vec3( 1.4, 2.6, 0.0), heading = 200.0, scenario = 'WORLD_HUMAN_STAND_IMPATIENT' },
+    },
+}
+
 ---Total number of props this build will attempt.
 ---@return number
 function Props.count()

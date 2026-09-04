@@ -646,5 +646,107 @@ check('the Arabic brand name is مانجو نزلت', MN.Locales.ar.brand == 'م
 check('the English brand name is MangoNazlet', MN.Locales.en.brand == 'MangoNazlet')
 
 -- ═══════════════════════════════════════════════════════════════
+group('moving the whole shop')
+-- ═══════════════════════════════════════════════════════════════
+
+-- /mn:place here has to move the shop as one rigid body: if the anchors drift
+-- relative to each other the counter ends up inside a wall and the stations
+-- scatter. Distances between every pair must survive the move.
+local function distance(a, b)
+    return math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 + (a.z - b.z) ^ 2)
+end
+
+local function currentShape()
+    local out = {}
+    for _, anchor in ipairs(Locations.anchors) do
+        local entry = Locations.shop[anchor]
+        if entry then out[anchor] = entry.coords or entry.spawn or entry.stand end
+    end
+    for _, station in ipairs(Locations.shop.stations) do
+        out[station.id] = station.coords
+    end
+    return out
+end
+
+local shapeBefore = currentShape()
+local knownDistances = {}
+for a, pa in pairs(shapeBefore) do
+    for b, pb in pairs(shapeBefore) do
+        if a < b then knownDistances[#knownDistances + 1] = { a, b, distance(pa, pb) } end
+    end
+end
+
+local relocation = Locations.relocate(vec3(-1290.0, -1430.0, 4.5), 127.0)
+Locations.applyOverrides(relocation)
+local shapeAfter = currentShape()
+
+check('relocate returns a placement for every anchor',
+    MN.count(relocation) >= #Locations.anchors)
+
+check('every anchor actually moved', (function()
+    for anchor, point in pairs(shapeBefore) do
+        if distance(point, shapeAfter[anchor]) < 1.0 then return false end
+    end
+    return true
+end)())
+
+check('the shop keeps its shape through a move and a rotation', (function()
+    for _, pair in ipairs(knownDistances) do
+        local got = distance(shapeAfter[pair[1]], shapeAfter[pair[2]])
+        if math.abs(got - pair[3]) > 0.01 then
+            print(('        %s..%s drifted %.3f -> %.3f'):format(pair[1], pair[2], pair[3], got))
+            return false
+        end
+    end
+    return true
+end)())
+
+check('stations travel with the building', (function()
+    for _, station in ipairs(Locations.shop.stations) do
+        if distance(shapeBefore[station.id], station.coords) < 1.0 then return false end
+    end
+    return true
+end)())
+
+check('a second relocation is still rigid', (function()
+    Locations.applyOverrides(Locations.relocate(vec3(100.0, 200.0, 30.0), -45.0))
+    local shape = currentShape()
+    for _, pair in ipairs(knownDistances) do
+        if math.abs(distance(shape[pair[1]], shape[pair[2]]) - pair[3]) > 0.01 then return false end
+    end
+    return true
+end)())
+
+-- ═══════════════════════════════════════════════════════════════
+group('staff on shift')
+-- ═══════════════════════════════════════════════════════════════
+
+check('the shop is staffed',
+    Props.staff.enabled == true and #Props.staff.members > 0)
+
+check('every ped names a model and a position', (function()
+    for _, group in ipairs({ Props.staff.members, Props.staff.customers }) do
+        for _, person in ipairs(group) do
+            if type(person.model) ~= 'string' or person.model == '' then return false end
+            local offset = person.offset
+            if type(offset) ~= 'table' or not offset.x or not offset.y then return false end
+        end
+    end
+    return true
+end)())
+
+check('staff peds are cleaned up with the props', (function()
+    local source = assert(io.open('client/props.lua')):read('a')
+    return source:find('DeletePed') ~= nil
+end)())
+
+check('staff peds cannot be shoved around or shot', (function()
+    local source = assert(io.open('client/props.lua')):read('a')
+    return source:find('SetBlockingOfNonTemporaryEvents') ~= nil
+        and source:find('SetEntityInvincible') ~= nil
+        and source:find('FreezeEntityPosition') ~= nil
+end)())
+
+-- ═══════════════════════════════════════════════════════════════
 print(('\n%s\n  %d passed, %d failed\n'):format(string.rep('─', 46), pass, fail))
 os.exit(fail == 0 and 0 or 1)
