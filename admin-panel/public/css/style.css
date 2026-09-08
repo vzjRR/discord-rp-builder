@@ -65,20 +65,24 @@
   src: url('/fonts/ibm-plex-sans-arabic-700-latin.woff2') format('woff2');
 }
 
+/* الهوية افتراضيًا فاتحة: أبيض مع نقوش بنفسجية خفيفة (--purple-*). التبديل
+   لليلي (أسود مع نقوش ذهبية) عبر data-theme="dark" على <html> — نفس
+   متغيّرات --purple-* تُعاد تعريف قيمها لتصبح سُلَّم ذهبي بدل البنفسجي، فكل
+   قاعدة CSS تستعمل var(--purple-600) وأخواتها تتحوّل تلقائيًا بلا تكرار. */
 :root {
   /* سطوح */
-  --bg: #f5f2fb;
-  --bg-soft: #eee6fb;
+  --bg: #ffffff;
+  --bg-soft: #f6f1fd;
   --surface: #ffffff;
-  --sidebar: #fffffe;
+  --sidebar: #ffffff;
 
   /* حدود */
-  --border: #e5dcf7;
-  --border-strong: #d3c0ef;
+  --border: #ece2f9;
+  --border-strong: #d8c3f2;
 
   /* نص */
-  --text: #221a33;
-  --text-dim: #75698f;
+  --text: #201936;
+  --text-dim: #71648f;
   --text-faint: #a99bc4;
 
   /* البنفسجي — نفس عائلة صورة الترحيب، مُدرَّج لتباين يعمل على خلفية فاتحة */
@@ -109,19 +113,80 @@
   --shadow-md: 0 16px 40px -12px rgba(76, 29, 149, 0.22);
   --ring: 0 0 0 3px rgba(124, 58, 237, 0.14);
   --glow: 0 10px 26px -6px rgba(124, 58, 237, 0.45);
+
+  /* نقوش الخلفية — نقطة الشبكة الخفيفة خلف كل صفحة */
+  --pattern-dot: rgba(124, 58, 237, 0.07);
+  --pattern-blob: var(--purple-100);
+}
+
+/* الوضع الليلي — أسود مع نقوش ذهبية. نفس أسماء المتغيّرات (--purple-*)
+   تحمل الآن سُلَّمًا ذهبيًا بدل البنفسجي، فتبقى كل مكوّنات الواجهة تعمل
+   بلا أي تعديل إضافي. */
+:root[data-theme="dark"] {
+  --bg: #0a090d;
+  --bg-soft: #17141d;
+  --surface: #131019;
+  --sidebar: #100e15;
+
+  --border: #2a2433;
+  --border-strong: #3d3548;
+
+  --text: #f3eefc;
+  --text-dim: #ab9fc4;
+  --text-faint: #6f6688;
+
+  --purple-950: #1c1404;
+  --purple-700: #b8860b;
+  --purple-600: #d4af37;
+  --purple-500: #e2bf4c;
+  --purple-400: #eecb63;
+  --purple-300: #f6dd93;
+  --purple-100: #2b2410;
+
+  --danger: #f87171;
+  --danger-bg: #2a1315;
+  --danger-border: #5c2328;
+  --success: #4ade80;
+  --success-bg: #12241a;
+  --success-border: #245c3a;
+  --warning: #fbbf24;
+  --warning-bg: #2a2011;
+  --warning-border: #5c4a1f;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  --ring: 0 0 0 3px rgba(212, 175, 55, 0.22);
+  --glow: 0 10px 26px -6px rgba(212, 175, 55, 0.3);
+
+  --pattern-dot: rgba(212, 175, 55, 0.1);
+  --pattern-blob: var(--purple-100);
 }
 
 * { box-sizing: border-box; }
 
+html {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 html, body {
   margin: 0;
   min-height: 100%;
-  background:
-    radial-gradient(760px 420px at 12% -8%, var(--purple-100) 0%, transparent 60%),
-    var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(760px 420px at 12% -8%, var(--pattern-blob) 0%, transparent 60%),
+    radial-gradient(620px 360px at 100% 100%, var(--pattern-blob) 0%, transparent 55%),
+    radial-gradient(var(--pattern-dot) 1.4px, transparent 1.6px);
+  background-size: auto, auto, 26px 26px;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-attachment: fixed, fixed, fixed;
   color: var(--text);
   font-family: 'Plex Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 body { direction: rtl; }
@@ -460,4 +525,19 @@ textarea.drag-over { border-color: var(--purple-500); background: var(--purple-1
 .lang-switch button:hover { border-color: var(--purple-400); color: var(--purple-700); }
 .lang-switch button.active {
   border-color: var(--purple-500); background: var(--purple-100); color: var(--purple-700); font-weight: 600;
+}
+
+/* ── مبدّل الوضع الليلي/الفاتح ─────────────────────────────────── */
+.theme-toggle {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+  width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+  font-family: inherit; transition: border-color .15s, color .15s, background .15s, transform .15s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { border-color: var(--purple-400); color: var(--purple-700); transform: rotate(12deg); }
+.theme-toggle-fixed { position: fixed; top: 14px; left: 14px; z-index: 50; }
+.theme-toggle-fixed .theme-toggle { box-shadow: var(--shadow-sm); }
+@media (max-width: 720px) {
+  .theme-toggle-fixed { top: 8px; left: 8px; }
 }

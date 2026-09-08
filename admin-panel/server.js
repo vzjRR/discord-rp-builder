@@ -140,6 +140,7 @@ app.use(require('./src/routes/pinReset'));
 app.use(require('./src/routes/status'));
 app.use(require('./src/routes/backup'));
 app.use(require('./src/routes/points'));
+app.use(require('./src/routes/fivem'));
 
 // أخطاء رفع المرفقات لها رسائل خاصة — قبل معالج الأخطاء العام
 app.use(require('./src/uploads').uploadErrorHandler);
@@ -178,13 +179,15 @@ app.get('/', auth.requireAuth, (req, res) => res.sendFile(page('dashboard.html')
 app.get('/messages', auth.requireAuth, anyOf(['messages.dm', 'messages.announce']), (req, res) =>
   res.sendFile(page('messages.html'))
 );
+// أدوات الإشراف صارت تبويبًا داخل "إدارة السيرفر" — رابط قديم أُبقي عليه
+// كتحويلة لا كصفحة، حفاظًا على أي رابط محفوظ عند أحد.
+app.get('/moderation', auth.requireAuth, (req, res) => res.redirect('/server'));
 app.get(
-  '/moderation',
+  '/server',
   auth.requireAuth,
-  anyOf(['moderation.kick', 'moderation.ban', 'moderation.timeout', 'moderation.warn', 'moderation.purge', 'moderation.lock']),
-  (req, res) => res.sendFile(page('moderation.html'))
+  anyOf(['server.manage', 'moderation.kick', 'moderation.ban', 'moderation.timeout', 'moderation.warn', 'moderation.purge', 'moderation.lock']),
+  (req, res) => res.sendFile(page('server.html'))
 );
-app.get('/server', auth.requireAuth, anyOf(['server.manage']), (req, res) => res.sendFile(page('server.html')));
 app.get('/status', auth.requireAuth, anyOf(['status.view']), (req, res) => res.sendFile(page('status.html')));
 app.get('/points', auth.requireAuth, anyOf(['points.view', 'points.manage']), (req, res) =>
   res.sendFile(page('points.html'))

@@ -2,6 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
+<script>(function(){try{if(localStorage.getItem('enclave_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+<script src="/js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>الرئيسية — Enclave RP BOT</title>
 <link rel="manifest" href="/manifest.webmanifest">
@@ -11,6 +13,7 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+<div class="theme-toggle-fixed" data-theme-toggle-mount></div>
 <div class="app-shell">
   <nav class="sidebar">
     <div class="brand">
@@ -24,10 +27,6 @@
     <a class="nav-link" href="/messages">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="10" rx="3"/><path d="M8 18.5l3-3"/></svg>
       الرسائل والإعلانات
-    </a>
-    <a class="nav-link" href="/moderation">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l6.5 2.5v5c0 4.5-2.8 7.3-6.5 8.7-3.7-1.4-6.5-4.2-6.5-8.7v-5L12 3.5z"/></svg>
-      الإشراف
     </a>
     <a class="nav-link" href="/server">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="6" rx="2"/><rect x="4" y="13.5" width="16" height="6" rx="2"/><circle cx="8" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="8" cy="16.5" r=".7" fill="currentColor" stroke="none"/></svg>
@@ -60,21 +59,16 @@
   </nav>
   <main class="main">
     <h1>الرئيسية</h1>
-    <p class="subtitle">نظرة سريعة على السيرفر</p>
+    <p class="subtitle">نظرة سريعة: حالة سيرفر اللعب، وآخر ما تحرّك بديسكورد</p>
 
-    <div class="card" id="guildCard">
-      <h2>معلومات السيرفر</h2>
-      <p class="subtitle">جارٍ التحميل…</p>
+    <div class="card" id="fivemCard">
+      <h2>سيرفر FiveM</h2>
+      <p class="subtitle" style="margin:0">جارٍ التحميل…</p>
     </div>
 
-    <div class="card">
-      <h2>روابط سريعة</h2>
-      <p><a href="/messages">إرسال رسالة خاصة أو إعلان</a></p>
-      <p><a href="/moderation">أدوات الإشراف (طرد/حظر/إسكات مؤقت/قفل قناة…)</a></p>
-      <p><a href="/server">إدارة قنوات ورولات السيرفر</a></p>
-      <p><a href="/templates">تعديل الرسائل الثابتة (كرسالة الترحيب)</a></p>
-      <p><a href="/logs">سجلّ كل ما نُفِّذ من المنصة</a></p>
-      <p><a href="/install">تثبيت المنصة على جهازك 📱</a></p>
+    <div class="card" id="feedCard">
+      <h2>آخر تحديثات ديسكورد</h2>
+      <div id="feedList"><p class="subtitle" style="margin:0">جارٍ التحميل…</p></div>
     </div>
 
     <div class="footer-credit">تم التطوير عن طريق <a href="https://www.tsh87.com" target="_blank" rel="noopener"><b>vzjRR</b></a></div>
@@ -82,22 +76,86 @@
 </div>
 <script src="/js/app.js"></script>
 <script>
-  (async () => {
+  const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('ar-SA') : '—');
+  const nf = new Intl.NumberFormat('ar-SA');
+
+  // أسماء سيرفرات FiveM كثيرًا ما تحوي رموز تلوين مثل ^1 أحمر^0 — لا معنى
+  // لها خارج شاشة اللعبة، فنحذفها قبل العرض هنا.
+  const stripColorCodes = (s) => String(s ?? '').replace(/\^[0-9]/g, '');
+
+  async function loadFivem() {
+    const card = document.getElementById('fivemCard');
     try {
-      const g = await api('GET', '/api/discord/guild');
-      document.getElementById('guildCard').innerHTML = `
-        <h2>معلومات السيرفر</h2>
-        <div style="display:flex;align-items:center;gap:14px">
-          ${g.iconUrl ? `<img src="${g.iconUrl}" style="width:56px;height:56px;border-radius:14px">` : ''}
-          <div>
-            <div style="font-size:16px;font-weight:600">${escapeHtml(g.name)}</div>
-            <div class="subtitle" style="margin:2px 0 0">${g.memberCount ?? '—'} عضو</div>
-          </div>
-        </div>`;
+      const d = await api('GET', '/api/fivem/status');
+      if (!d.configured) {
+        card.innerHTML = `<h2>سيرفر FiveM</h2><p class="subtitle" style="margin:0">ما زال ما رُبط سيرفر FiveM بالمنصة — أضف FIVEM_SERVER_ID بإعدادات المنصة لعرض حالته هنا.</p>`;
+        return;
+      }
+      if (!d.online) {
+        card.innerHTML = `
+          <h2>سيرفر FiveM</h2>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="badge" style="background:var(--danger-bg);color:var(--danger);border-color:var(--danger-border)">غير متصل</span>
+            <a href="${escapeHtml(d.joinUrl)}" target="_blank" rel="noopener">فتح صفحة السيرفر</a>
+          </div>`;
+        return;
+      }
+      const pct = d.maxClients ? Math.round((d.clients / d.maxClients) * 100) : null;
+      card.innerHTML = `
+        <h2>سيرفر FiveM</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <span class="badge" style="background:var(--success-bg);color:var(--success);border-color:var(--success-border)">متصل</span>
+          <span style="font-weight:600">${escapeHtml(stripColorCodes(d.hostname))}</span>
+        </div>
+        <div class="stat-row" style="margin-bottom:14px">
+          <div class="stat"><div class="stat-value">${nf.format(d.clients)}${d.maxClients ? ` / ${nf.format(d.maxClients)}` : ''}</div><div class="stat-label">لاعبون متصلون${pct !== null ? ` (${pct}%)` : ''}</div></div>
+          <div class="stat"><div class="stat-value" style="font-size:18px">${escapeHtml(d.mapname || '—')}</div><div class="stat-label">الخريطة</div></div>
+          ${d.resourceCount !== null ? `<div class="stat"><div class="stat-value">${nf.format(d.resourceCount)}</div><div class="stat-label">الموارد (Resources)</div></div>` : ''}
+        </div>
+        <a href="${escapeHtml(d.joinUrl)}" target="_blank" rel="noopener" class="btn small ghost" style="display:inline-block;text-decoration:none">الانضمام للسيرفر ↗</a>`;
     } catch (err) {
-      document.getElementById('guildCard').innerHTML = `<h2>معلومات السيرفر</h2><p class="subtitle">${err.message}</p>`;
+      card.innerHTML = `<h2>سيرفر FiveM</h2><p class="msg show err">${escapeHtml(err.message)}</p>`;
     }
-  })();
+  }
+
+  function feedAvatar(item) {
+    return item.avatar
+      ? `<img src="${escapeHtml(item.avatar)}" alt="" width="34" height="34" style="border-radius:50%;flex-shrink:0">`
+      : `<div style="width:34px;height:34px;border-radius:50%;background:var(--bg-soft);flex-shrink:0"></div>`;
+  }
+
+  async function loadFeed() {
+    const list = document.getElementById('feedList');
+    try {
+      const d = await api('GET', '/api/status');
+      const feed = [
+        ...d.newestMembers.map((m) => ({ ...m, kind: 'join', at: m.joinedAt })),
+        ...d.recentLeavers.map((m) => ({ ...m, kind: 'leave' })),
+      ]
+        .sort((a, b) => new Date(b.at) - new Date(a.at))
+        .slice(0, 8);
+
+      if (!feed.length) {
+        list.innerHTML = '<p class="subtitle" style="margin:0">لا يوجد نشاط مسجَّل بعد</p>';
+        return;
+      }
+      list.innerHTML = feed.map((item) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          ${feedAvatar(item)}
+          <div style="flex:1;min-width:0">
+            <div>${escapeHtml(item.displayName || item.username || item.userId)}</div>
+            <div class="subtitle" style="margin:0">${fmtDateTime(item.at)}</div>
+          </div>
+          <span class="badge" style="${item.kind === 'join' ? 'background:var(--success-bg);color:var(--success);border-color:var(--success-border)' : 'background:var(--danger-bg);color:var(--danger);border-color:var(--danger-border)'}">${item.kind === 'join' ? 'انضم' : 'غادر'}</span>
+        </div>`).join('');
+      list.lastElementChild.style.borderBottom = 'none';
+    } catch (err) {
+      list.innerHTML = `<p class="msg show err">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  loadFivem();
+  loadFeed();
 </script>
 </body>
 </html>

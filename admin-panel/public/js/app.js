@@ -57,11 +57,11 @@ function highlightActiveNav() {
 // المسارات نفسها، وهذا تيسير للواجهة لا حماية.
 const NAV_PERMISSIONS = {
   '/messages': ['messages.dm', 'messages.announce'],
-  '/moderation': [
+  '/server': [
+    'server.manage',
     'moderation.kick', 'moderation.ban', 'moderation.timeout',
     'moderation.warn', 'moderation.purge', 'moderation.lock',
   ],
-  '/server': ['server.manage'],
   '/status': ['status.view'],
   '/points': ['points.view', 'points.manage'],
   '/templates': ['templates.manage'],
