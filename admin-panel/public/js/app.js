@@ -63,6 +63,7 @@ const NAV_PERMISSIONS = {
   ],
   '/server': ['server.manage'],
   '/status': ['status.view'],
+  '/points': ['points.view', 'points.manage'],
   '/templates': ['templates.manage'],
   '/logs': ['logs.view'],
 };

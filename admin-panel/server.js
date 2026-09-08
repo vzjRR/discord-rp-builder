@@ -139,6 +139,7 @@ app.use(require('./src/routes/preview'));
 app.use(require('./src/routes/pinReset'));
 app.use(require('./src/routes/status'));
 app.use(require('./src/routes/backup'));
+app.use(require('./src/routes/points'));
 
 // أخطاء رفع المرفقات لها رسائل خاصة — قبل معالج الأخطاء العام
 app.use(require('./src/uploads').uploadErrorHandler);
@@ -185,6 +186,9 @@ app.get(
 );
 app.get('/server', auth.requireAuth, anyOf(['server.manage']), (req, res) => res.sendFile(page('server.html')));
 app.get('/status', auth.requireAuth, anyOf(['status.view']), (req, res) => res.sendFile(page('status.html')));
+app.get('/points', auth.requireAuth, anyOf(['points.view', 'points.manage']), (req, res) =>
+  res.sendFile(page('points.html'))
+);
 app.get('/templates', auth.requireAuth, anyOf(['templates.manage']), (req, res) => res.sendFile(page('templates.html')));
 app.get('/logs', auth.requireAuth, anyOf(['logs.view']), (req, res) => res.sendFile(page('logs.html')));
 app.get('/admins', auth.requireAuth, auth.requireOwner, (req, res) => res.sendFile(page('admins.html')));

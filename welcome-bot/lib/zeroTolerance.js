@@ -6,7 +6,18 @@ const fs = require('fs');
 const path = require('path');
 const cfg = require('../config/zeroTolerance');
 
-const DB_PATH = process.env.ZERO_TOLERANCE_DB_PATH || '/data/zero-tolerance.db';
+// Systemd's ProtectSystem=strict makes the whole filesystem read-only except
+// paths the unit explicitly whitelists (ReadWritePaths) -- '/data' is only
+// whitelisted on the older standalone enclave-bot.service; the combined
+// enclave-admin-bot.service only whitelists EVENTS_DB_PATH's own directory
+// (shared with activityTracker.js and the admin panel). Piggyback on
+// whichever one is actually writable in this deployment instead of a fixed
+// guess, so a silent write failure here can't quietly cap every violation
+// count at "first offense" forever (see recordViolation's fallback below).
+const DB_PATH = process.env.ZERO_TOLERANCE_DB_PATH
+  || (process.env.EVENTS_DB_PATH
+    ? path.join(path.dirname(process.env.EVENTS_DB_PATH), 'zero-tolerance.db')
+    : '/data/zero-tolerance.db');
 
 let db = null;
 

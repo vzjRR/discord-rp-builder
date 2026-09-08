@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ترتيب نقاط الدعم — Enclave RP BOT</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="theme-color" content="#f5f2fb">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  #printHeader { display: none; }
+  @media print {
+    /* طباعة/تصدير PDF عبر مربع طباعة المتصفح — يعالج تشكيل واتجاه النص
+       العربي بشكل صحيح تلقائيًا (bidi + ligatures)، بعكس أي مكتبة PDF من
+       جهة الخادم لا تصنع هذا بنفسها. */
+    .sidebar, .footer-credit, .no-print, #unavailableCard { display: none !important; }
+    .app-shell, .main { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+    #printHeader { display: block !important; margin-bottom: 16px; }
+    body { background: #fff !important; color: #000 !important; }
+    table { color: #000 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand">
+      <img src="/icons/icon-192.png" alt="">
+      <div class="brand-text"><span class="name">Enclave RP</span><span class="tag">BOT</span></div>
+    </div>
+    <a class="nav-link" href="/">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 4l8.5 6.5"/><path d="M5.5 9v9.5h13V9"/><path d="M10 18.5v-5h4v5"/></svg>
+      الرئيسية
+    </a>
+    <a class="nav-link" href="/messages">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="10" rx="3"/><path d="M8 18.5l3-3"/></svg>
+      الرسائل والإعلانات
+    </a>
+    <a class="nav-link" href="/moderation">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l6.5 2.5v5c0 4.5-2.8 7.3-6.5 8.7-3.7-1.4-6.5-4.2-6.5-8.7v-5L12 3.5z"/></svg>
+      الإشراف
+    </a>
+    <a class="nav-link" href="/server">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="6" rx="2"/><rect x="4" y="13.5" width="16" height="6" rx="2"/><circle cx="8" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="8" cy="16.5" r=".7" fill="currentColor" stroke="none"/></svg>
+      إدارة السيرفر
+    </a>
+    <a class="nav-link" href="/status">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 3 12 2-8 2 2h5"/></svg>
+      حالة السيرفر
+    </a>
+    <a class="nav-link" href="/points">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.5h8v4a4 4 0 0 1-8 0v-4z"/><path d="M8 5.5H5a2 2 0 0 0 2 3.5M16 5.5h3a2 2 0 0 1-2 3.5"/><path d="M12 12.5v3M9 19.5h6M10 15.5h4v3.2c0 .5-.4.8-.8.8h-2.4c-.4 0-.8-.3-.8-.8v-3.2z"/></svg>
+      ترتيب نقاط الدعم
+    </a>
+    <a class="nav-link" href="/templates">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4v13H7z"/><path d="M11 10.5h5M11 14h5M11 17.5h3"/></svg>
+      الرسائل الثابتة
+    </a>
+    <a class="nav-link" href="/logs">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>
+      سجل النشاط
+    </a>
+    <a class="nav-link" href="/admins">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.6"/><path d="M4 19c0-3 2.2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.1"/><path d="M15.3 13.2c2.4.3 3.9 2 3.9 4.3"/></svg>
+      إدارة الحسابات
+    </a>
+    <div class="nav-footer">
+      <div class="who"></div>
+      <button class="logout-btn">تسجيل الخروج</button>
+    </div>
+  </nav>
+  <main class="main">
+    <h1>ترتيب نقاط الدعم</h1>
+
+    <div class="card" id="unavailableCard" style="display:none">
+      <p class="subtitle" style="margin:0" id="unavailableText"></p>
+    </div>
+
+    <div class="card">
+      <div id="printHeader">
+        <h2 style="margin:0 0 4px">ترتيب نقاط الدعم — <span id="printScopeLabel"></span></h2>
+        <p class="subtitle" style="margin:0" id="printDate"></p>
+      </div>
+      <div class="tabs no-print">
+        <button class="tab-btn" data-scope="daily">اليوم</button>
+        <button class="tab-btn" data-scope="weekly">هذا الأسبوع</button>
+        <button class="tab-btn" data-scope="monthly">هذا الشهر</button>
+        <button class="tab-btn" data-scope="yearly">هذه السنة</button>
+        <button class="tab-btn active" data-scope="alltime">الكل</button>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>العضو</th><th>النقاط</th><th>الصور</th></tr></thead>
+        <tbody id="leaderboardBody"><tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+      <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn small ghost" id="refreshLeaderboard">تحديث الآن</button>
+        <button class="btn small ghost" id="exportPdf">🖨️ طباعة / تصدير PDF</button>
+      </div>
+    </div>
+
+    <div class="card no-print" id="manageCard" style="display:none">
+      <h2>تعديل يدوي</h2>
+      <p class="subtitle">إضافة أو خصم نقاط لعضو، أو تصفير رصيده بالكامل. يُسجَّل كل تعديل في سجل النشاط.</p>
+      <label>العضو</label>
+      <div id="adjustPicker"></div>
+      <label>عدد النقاط (رقم موجب للإضافة، سالب للخصم)</label>
+      <input type="number" id="adjustDelta" placeholder="مثال: 5 أو -3-" step="1">
+      <label>السبب (اختياري)</label>
+      <input type="text" id="adjustReason" placeholder="مثال: تعويض عن خطأ تقني">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn small" id="adjustApply">تطبيق التعديل</button>
+        <button class="btn small danger" id="adjustReset">تصفير رصيد العضو</button>
+      </div>
+      <div class="msg" id="adjustMsg"></div>
+
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+        <h2 style="color:var(--danger)">⚠️ تصفير الترتيب بالكامل</h2>
+        <p class="subtitle">
+          يمسح رصيد كل الأعضاء ورسائلهم المحتسبة نهائيًا ويبدأ العدّ من الصفر
+          — لا يمكن التراجع عنه. أرشيف الفترات المنتهية وسجل النشاط لا يتأثران.
+        </p>
+        <button class="btn small danger" id="resetAllBtn">تصفير الترتيب بالكامل وإعادة تهيئته</button>
+        <div class="msg" id="resetAllMsg"></div>
+      </div>
+    </div>
+
+    <div class="card no-print">
+      <h2>آخر العمليات</h2>
+      <table>
+        <thead><tr><th>الوقت</th><th>النوع</th><th>العضو</th><th>التغيير</th><th>التفاصيل</th></tr></thead>
+        <tbody id="auditBody"><tr><td colspan="5" class="subtitle">جارٍ التحميل…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="footer-credit">تم التطوير عن طريق <a href="https://www.tsh87.com" target="_blank" rel="noopener"><b>vzjRR</b></a></div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/memberPicker.js"></script>
+<script>
+  const nf = new Intl.NumberFormat('ar-SA');
+  let scope = 'alltime';
+
+  const SCOPE_LABELS = {
+    daily: 'اليوم',
+    weekly: 'هذا الأسبوع',
+    monthly: 'هذا الشهر',
+    yearly: 'هذه السنة',
+    alltime: 'كل الأوقات',
+  };
+
+  const ACTION_LABELS = {
+    IMAGE_COUNTED: 'صورة محتسبة',
+    MESSAGE_EDIT_ADJUSTED: 'تعديل رسالة',
+    MESSAGE_DELETE_ADJUSTED: 'حذف رسالة',
+    MANUAL_ADJUSTMENT: 'تعديل يدوي',
+    DAILY_ROLLOVER: 'تجديد يومي',
+    WEEKLY_ROLLOVER: 'تجديد أسبوعي',
+    MONTHLY_ROLLOVER: 'تجديد شهري',
+    YEARLY_ROLLOVER: 'تجديد سنوي',
+    FULL_RESET: '⚠️ تصفير كامل',
+    ERROR: 'خطأ',
+  };
+
+  function fmtDelta(n) {
+    if (n === null || n === undefined) return '—';
+    const color = n > 0 ? 'var(--success)' : n < 0 ? 'var(--danger)' : 'inherit';
+    const sign = n > 0 ? '+' : '';
+    return `<span style="color:${color}">${sign}${nf.format(n)}</span>`;
+  }
+
+  async function loadLeaderboard() {
+    const body = document.getElementById('leaderboardBody');
+    body.innerHTML = '<tr><td colspan="4" class="subtitle">جارٍ التحميل…</td></tr>';
+    try {
+      const data = await api('GET', `/api/points/leaderboard?scope=${scope}`);
+      document.getElementById('unavailableCard').style.display = 'none';
+      if (!data.entries.length) {
+        body.innerHTML = '<tr><td colspan="4" class="subtitle">لا يوجد أي نقاط مسجّلة بعد</td></tr>';
+        return;
+      }
+      body.innerHTML = data.entries.map((e) => `
+        <tr>
+          <td class="subtitle" style="width:36px">${nf.format(e.rank)}</td>
+          <td>${escapeHtml(e.displayName || e.username)}<div class="subtitle">@${escapeHtml(e.username)}</div></td>
+          <td>${nf.format(e.points)}</td>
+          <td>${nf.format(e.images)}</td>
+        </tr>`).join('');
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+      if (err.message.includes('points-bot')) {
+        document.getElementById('unavailableCard').style.display = 'block';
+        document.getElementById('unavailableText').textContent = err.message;
+      }
+    }
+  }
+
+  // اسم العضو وقت القراءة (من جدول users عبر JOIN بالخادم) لا معرّفه الرقمي
+  // — لو صُفِّر رصيده بالكامل ولم يعد له صفّ، نكتب "عضو محذوف" صراحةً
+  // بدل ترك رقم ID بلا معنى للقارئ.
+  function memberLabel(r) {
+    if (!r.user_id) return '—';
+    if (r.display_name) return escapeHtml(r.display_name);
+    if (r.username) return escapeHtml(r.username);
+    return 'عضو محذوف';
+  }
+
+  // نص واحد بسيط وواضح لكل نوع حدث، بدل عرض JSON الخام كما هو مخزَّن.
+  function formatDetails(r) {
+    let d = null;
+    try { d = r.details ? JSON.parse(r.details) : null; } catch { d = null; }
+
+    switch (r.action_type) {
+      case 'IMAGE_COUNTED':
+        return d ? `عدد الصور بالرسالة: ${nf.format(d.images)}` : '—';
+      case 'MESSAGE_EDIT_ADJUSTED':
+        return d ? `عدد الصور: ${nf.format(d.previousImages)} ← ${nf.format(d.newImages)}` : '—';
+      case 'MESSAGE_DELETE_ADJUSTED':
+        return d ? `حُذفت الرسالة (كانت تحتوي ${nf.format(d.removedImages)} صورة)` : '—';
+      case 'MANUAL_ADJUSTMENT':
+        if (d?.reason === 'reset') return `تصفير الرصيد (كان: ${nf.format(d.previousTotal)} نقطة)`;
+        return d?.reason ? `السبب: ${escapeHtml(d.reason)}` : 'بدون سبب مذكور';
+      case 'FULL_RESET':
+        return d ? `حُذف ${nf.format(d.removedUsers)} عضو، ${nf.format(d.removedMessages)} رسالة محتسبة` : '—';
+      case 'DAILY_ROLLOVER':
+      case 'WEEKLY_ROLLOVER':
+      case 'MONTHLY_ROLLOVER':
+      case 'YEARLY_ROLLOVER':
+        return d ? `الفترة المنتهية: ${escapeHtml(d.finishedKey)} — عدد المشاركين: ${nf.format(d.participants)}` : '—';
+      case 'ERROR':
+        return d?.scope ? `خطأ في: ${escapeHtml(d.scope)}` : 'خطأ غير محدد';
+      default:
+        return '—';
+    }
+  }
+
+  async function loadAudit() {
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '<tr><td colspan="5" class="subtitle">جارٍ التحميل…</td></tr>';
+    try {
+      const data = await api('GET', '/api/points/audit?pageSize=50');
+      if (!data.rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="subtitle">لا يوجد أي نشاط بعد</td></tr>';
+        return;
+      }
+      body.innerHTML = data.rows.map((r) => `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleString('ar-SA')}</td>
+          <td><span class="badge">${ACTION_LABELS[r.action_type] || escapeHtml(r.action_type)}</span></td>
+          <td>${memberLabel(r)}</td>
+          <td>${fmtDelta(r.points_delta)}</td>
+          <td class="subtitle">${formatDetails(r)}</td>
+        </tr>`).join('');
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="5" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      scope = btn.dataset.scope;
+      loadLeaderboard();
+    });
+  });
+  document.getElementById('refreshLeaderboard').addEventListener('click', () => { loadLeaderboard(); loadAudit(); });
+
+  document.getElementById('exportPdf').addEventListener('click', () => {
+    document.getElementById('printScopeLabel').textContent = SCOPE_LABELS[scope] || scope;
+    document.getElementById('printDate').textContent = `تاريخ الإصدار: ${new Date().toLocaleString('ar-SA')}`;
+    window.print();
+  });
+
+  // بطاقة التعديل اليدوي: صلاحية points.manage وحدها — الخادم يمنعها أيضًا،
+  // وهذا إخفاء للواجهة فقط.
+  (async () => {
+    try {
+      const { admin } = await api('GET', '/api/me');
+      const held = admin.isOwner || (admin.permissions || []).includes('points.manage');
+      if (held) document.getElementById('manageCard').style.display = 'block';
+    } catch { /* تجاهل */ }
+  })();
+
+  let selectedUsername = null;
+  const adjustPicker = createMemberPicker({
+    mount: document.getElementById('adjustPicker'),
+    mode: 'members',
+    onSelect: (m) => {
+      const match = /^(?:(.+) \(@(.+)\)|@(.+))$/.exec(m.label);
+      selectedUsername = match ? (match[2] || match[3]) : m.label;
+    },
+  });
+
+  async function runAdjust(kind) {
+    const msgEl = document.getElementById('adjustMsg');
+    const userId = adjustPicker.getId();
+    if (!userId) return showMsg(msgEl, 'اختر العضو أولًا', false);
+
+    if (kind === 'reset' && !confirm('سيُصفَّر رصيد هذا العضو بالكامل (إجمالي/يومي/أسبوعي/شهري/سنوي). هل أنت متأكد؟')) return;
+
+    const displayName = document.getElementById('adjustPicker').querySelector('.mp-input')?.value || userId;
+    const btnId = kind === 'reset' ? 'adjustReset' : 'adjustApply';
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    try {
+      if (kind === 'reset') {
+        await api('POST', '/api/points/reset', { userId, displayName });
+        showMsg(msgEl, 'تم تصفير رصيد العضو.', true);
+      } else {
+        const delta = Number(document.getElementById('adjustDelta').value);
+        if (!Number.isInteger(delta) || delta === 0) {
+          return showMsg(msgEl, 'أدخل عدد نقاط صحيح مختلف عن صفر', false);
+        }
+        const reason = document.getElementById('adjustReason').value.trim();
+        await api('POST', '/api/points/adjust', {
+          userId,
+          username: selectedUsername || userId,
+          displayName,
+          delta,
+          reason,
+        });
+        showMsg(msgEl, 'تم تطبيق التعديل.', true);
+        document.getElementById('adjustDelta').value = '';
+        document.getElementById('adjustReason').value = '';
+      }
+      loadLeaderboard();
+      loadAudit();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('adjustApply').addEventListener('click', () => runAdjust('adjust'));
+  document.getElementById('adjustReset').addEventListener('click', () => runAdjust('reset'));
+
+  document.getElementById('resetAllBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('resetAllMsg');
+    const typed = prompt('سيُصفَّر رصيد كل الأعضاء وتُمسح رسائلهم المحتسبة نهائيًا — بلا تراجع.\n\nاكتب RESET بالضبط للتأكيد:');
+    if (typed !== 'RESET') {
+      if (typed !== null) showMsg(msgEl, 'لم يتطابق النص — لم يُنفَّذ شيء.', false);
+      return;
+    }
+    const btn = document.getElementById('resetAllBtn');
+    btn.disabled = true;
+    try {
+      const data = await api('POST', '/api/points/reset-all', { confirm: 'RESET' });
+      showMsg(msgEl, `تم التصفير الكامل — ${data.removedUsers} عضو، ${data.removedMessages} رسالة محتسبة.`, true);
+      loadLeaderboard();
+      loadAudit();
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  loadLeaderboard();
+  loadAudit();
+</script>
+</body>
+</html>
