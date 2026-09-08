@@ -8,7 +8,7 @@ const path = require('path');
 const ONBOARDING_PATH = process.env.ONBOARDING_MESSAGE_PATH || '/data/onboarding-message.json';
 const REVOCATION_PATH = process.env.REVOCATION_MESSAGE_PATH || '/data/revocation-message.json';
 
-const DEFAULT_ONBOARDING = `🔐 **تم إنشاء حساب لك في منصة إدارة Enclave RP**
+const DEFAULT_ONBOARDING = `🔐 **تم إنشاء حساب لك في منصة Enclave RP BOT**
 
 مرحبًا {name}، أصبح لديك وصول إلى منصة التحكم الخاصة بالسيرفر، ويمكنك من خلالها:
 • إرسال الرسائل الخاصة والإعلانات إلى الأعضاء
@@ -25,7 +25,7 @@ const DEFAULT_ONBOARDING = `🔐 **تم إنشاء حساب لك في منصة �
 
 ⚠️ **تنبيه مهم:** هذا الرقم يمنحك صلاحيات واسعة في التحكم بالسيرفر. **يُمنع مشاركته مع أي شخص** — فهو خاص بك وحدك، وإذا وصل إلى غيرك أمكنه التحكم بالسيرفر باسمك. وإن نسيته، يمكنك طلب رقم جديد من صفحة تسجيل الدخول.`;
 
-const DEFAULT_REVOCATION = `🔒 **تم سحب صلاحيتك من منصة إدارة Enclave RP**
+const DEFAULT_REVOCATION = `🔒 **تم سحب صلاحيتك من منصة Enclave RP BOT**
 
 مرحبًا {name}، نُعلمك بأن حسابك في منصة التحكم قد أُلغي، ولم يعد رقمك السري صالحًا للدخول.
 

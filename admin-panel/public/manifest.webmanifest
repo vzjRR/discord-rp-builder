@@ -1,12 +1,12 @@
 {
-  "name": "Enclave RP — لوحة الإدارة",
-  "short_name": "Enclave Admin",
+  "name": "Enclave RP BOT",
+  "short_name": "Enclave RP BOT",
   "description": "منصة التحكم الخاصة ببوت Enclave RP",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#08050c",
-  "theme_color": "#08050c",
+  "background_color": "#f5f2fb",
+  "theme_color": "#f5f2fb",
   "lang": "ar",
   "dir": "rtl",
   "icons": [

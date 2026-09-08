@@ -23,7 +23,7 @@ const I18N = {
     'nav.loggedIn': 'المسجّل الدخول',
     'nav.owner': 'مالك',
 
-    'login.title': 'لوحة إدارة Enclave RP',
+    'login.title': 'Enclave RP BOT',
     'login.subtitle': 'أدخل رقمك السري الخاص',
     'login.submit': 'دخول',
     'login.forgot': 'نسيت رقمي السري',
@@ -53,7 +53,7 @@ const I18N = {
     'nav.loggedIn': 'Signed in',
     'nav.owner': 'Owner',
 
-    'login.title': 'Enclave RP Admin Panel',
+    'login.title': 'Enclave RP BOT',
     'login.subtitle': 'Enter your personal PIN',
     'login.submit': 'Sign in',
     'login.forgot': 'I forgot my PIN',
