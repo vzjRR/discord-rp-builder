@@ -43,10 +43,6 @@
   </nav>
   <main class="main">
     <h1>ترتيب نقاط الدعم</h1>
-    <p class="subtitle">
-      نقطة واحدة تلقائيًا لكل رسالة فيها صورة بالقناة المخصّصة — لا أوامر ديسكورد
-      لهذا الموضوع إطلاقًا، كل ما تراه هنا يُحتسب من بوت points-bot وحده.
-    </p>
 
     <div class="card" id="unavailableCard" style="display:none">
       <p class="subtitle" style="margin:0" id="unavailableText"></p>
@@ -171,6 +167,45 @@
     }
   }
 
+  // اسم العضو وقت القراءة (من جدول users عبر JOIN بالخادم) لا معرّفه الرقمي
+  // — لو صُفِّر رصيده بالكامل ولم يعد له صفّ، نكتب "عضو محذوف" صراحةً
+  // بدل ترك رقم ID بلا معنى للقارئ.
+  function memberLabel(r) {
+    if (!r.user_id) return '—';
+    if (r.display_name) return escapeHtml(r.display_name);
+    if (r.username) return escapeHtml(r.username);
+    return 'عضو محذوف';
+  }
+
+  // نص واحد بسيط وواضح لكل نوع حدث، بدل عرض JSON الخام كما هو مخزَّن.
+  function formatDetails(r) {
+    let d = null;
+    try { d = r.details ? JSON.parse(r.details) : null; } catch { d = null; }
+
+    switch (r.action_type) {
+      case 'IMAGE_COUNTED':
+        return d ? `عدد الصور بالرسالة: ${nf.format(d.images)}` : '—';
+      case 'MESSAGE_EDIT_ADJUSTED':
+        return d ? `عدد الصور: ${nf.format(d.previousImages)} ← ${nf.format(d.newImages)}` : '—';
+      case 'MESSAGE_DELETE_ADJUSTED':
+        return d ? `حُذفت الرسالة (كانت تحتوي ${nf.format(d.removedImages)} صورة)` : '—';
+      case 'MANUAL_ADJUSTMENT':
+        if (d?.reason === 'reset') return `تصفير الرصيد (كان: ${nf.format(d.previousTotal)} نقطة)`;
+        return d?.reason ? `السبب: ${escapeHtml(d.reason)}` : 'بدون سبب مذكور';
+      case 'FULL_RESET':
+        return d ? `حُذف ${nf.format(d.removedUsers)} عضو، ${nf.format(d.removedMessages)} رسالة محتسبة` : '—';
+      case 'DAILY_ROLLOVER':
+      case 'WEEKLY_ROLLOVER':
+      case 'MONTHLY_ROLLOVER':
+      case 'YEARLY_ROLLOVER':
+        return d ? `الفترة المنتهية: ${escapeHtml(d.finishedKey)} — عدد المشاركين: ${nf.format(d.participants)}` : '—';
+      case 'ERROR':
+        return d?.scope ? `خطأ في: ${escapeHtml(d.scope)}` : 'خطأ غير محدد';
+      default:
+        return '—';
+    }
+  }
+
   async function loadAudit() {
     const body = document.getElementById('auditBody');
     body.innerHTML = '<tr><td colspan="5" class="subtitle">جارٍ التحميل…</td></tr>';
@@ -180,18 +215,14 @@
         body.innerHTML = '<tr><td colspan="5" class="subtitle">لا يوجد أي نشاط بعد</td></tr>';
         return;
       }
-      body.innerHTML = data.rows.map((r) => {
-        let details = '';
-        try { details = r.details ? JSON.stringify(JSON.parse(r.details)) : ''; } catch { details = r.details || ''; }
-        return `
+      body.innerHTML = data.rows.map((r) => `
         <tr>
           <td>${new Date(r.created_at).toLocaleString('ar-SA')}</td>
           <td><span class="badge">${ACTION_LABELS[r.action_type] || escapeHtml(r.action_type)}</span></td>
-          <td class="subtitle">${escapeHtml(r.user_id || '—')}</td>
+          <td>${memberLabel(r)}</td>
           <td>${fmtDelta(r.points_delta)}</td>
-          <td class="subtitle">${escapeHtml(details)}</td>
-        </tr>`;
-      }).join('');
+          <td class="subtitle">${formatDetails(r)}</td>
+        </tr>`).join('');
     } catch (err) {
       body.innerHTML = `<tr><td colspan="5" class="subtitle">${escapeHtml(err.message)}</td></tr>`;
     }

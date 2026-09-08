@@ -84,21 +84,27 @@ function getUser(userId) {
   return conn.prepare('SELECT * FROM users WHERE discord_user_id = ?').get(userId);
 }
 
+// اسم العضو وقت السجل قد لا يكون هو اسمه اليوم (غيّر يوزرنيمه، أو صُفِّر
+// رصيده بالكامل فحُذف صفّه من users) — لهذا اسم الوقت الحالي عبر JOIN بدل
+// تخزين نسخة ثابتة، ويبقى display_name/username فارغين بصمت في تلك الحالة
+// (الواجهة تعرض "عضو محذوف" بدلًا من ترك معرّف رقمي بلا معنى للقارئ).
+const AUDIT_SELECT = `
+  SELECT a.*, u.username AS username, u.display_name AS display_name
+  FROM audit_log a
+  LEFT JOIN users u ON u.discord_user_id = a.user_id
+`;
+
 function getUserAudit(userId, limit = 50) {
   const conn = getDb();
   if (!conn) return [];
-  return conn
-    .prepare('SELECT * FROM audit_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
-    .all(userId, limit);
+  return conn.prepare(`${AUDIT_SELECT} WHERE a.user_id = ? ORDER BY a.created_at DESC LIMIT ?`).all(userId, limit);
 }
 
 function listAudit({ page = 1, pageSize = 50 } = {}) {
   const conn = getDb();
   if (!conn) return { rows: [], total: 0, page, pageSize };
   const offset = (page - 1) * pageSize;
-  const rows = conn
-    .prepare('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ? OFFSET ?')
-    .all(pageSize, offset);
+  const rows = conn.prepare(`${AUDIT_SELECT} ORDER BY a.created_at DESC LIMIT ? OFFSET ?`).all(pageSize, offset);
   const { count } = conn.prepare('SELECT COUNT(*) AS count FROM audit_log').get();
   return { rows, total: count, page, pageSize };
 }
