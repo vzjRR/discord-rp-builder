@@ -63,10 +63,22 @@
 
     <div class="card" id="requestsCard" style="display:none">
       <h2>طلبات دخول معلّقة</h2>
+      <p class="subtitle">الهوية والرتبة مُتحقَّق منهما عبر تسجيل دخول صاحب الطلب بديسكورد — لا مُدخَلان يدويًا.</p>
       <table>
-        <thead><tr><th>معرّف العضو</th><th>ملاحظة</th><th>الوقت</th><th></th></tr></thead>
+        <thead><tr><th>العضو</th><th>الرتبة بالسيرفر</th><th>السبب</th><th>الوقت</th><th></th></tr></thead>
         <tbody id="requestsBody"></tbody>
       </table>
+    </div>
+
+    <div class="card">
+      <h2>تسجيل خروج جميع الجلسات</h2>
+      <p class="subtitle">
+        يُخرج كل من هو مسجّل دخول الآن من كل الحسابات — بما فيها حسابك —
+        ويضطر الجميع لتسجيل دخول جديد. استعمله بعد تغيير جوهري بطريقة
+        الدخول، أو لو شككت بتسريب رقم سري أو جلسة.
+      </p>
+      <button class="btn small danger" id="logoutAllBtn">تسجيل خروج الجميع الآن</button>
+      <div class="msg" id="logoutAllMsg"></div>
     </div>
 
     <div class="card">
@@ -198,20 +210,32 @@
       card.style.display = 'block';
       document.getElementById('requestsBody').innerHTML = requests.map((r) => `
         <tr>
-          <td>${escapeHtml(r.discordUserId)}</td>
+          <td style="display:flex;align-items:center;gap:8px">
+            ${r.discordAvatar ? `<img src="${escapeHtml(r.discordAvatar)}" alt="" width="26" height="26" style="border-radius:50%">` : ''}
+            <span>${escapeHtml(r.discordUsername || r.discordUserId)}</span>
+          </td>
+          <td>${r.discordRank ? `<span class="badge">${escapeHtml(r.discordRank)}</span>` : '<span class="subtitle">بلا رتبة</span>'}</td>
           <td>${escapeHtml(r.note || '—')}</td>
           <td class="subtitle">${new Date(r.createdAt).toLocaleString('ar-SA')}</td>
           <td style="display:flex;gap:8px">
-            <button class="btn small" data-use="${r.discordUserId}">أنشئ له حسابًا</button>
+            <button class="btn small" data-approve="${r.id}">قبول</button>
             <button class="btn small ghost" data-reject="${r.id}">رفض</button>
           </td>
         </tr>`).join('');
 
-      document.querySelectorAll('[data-use]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          newMemberPicker.setManualId(btn.dataset.use);
-          document.getElementById('newName').focus();
-          document.getElementById('newName').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('[data-approve]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('سيُنشأ له حساب فورًا ويقدر يدخل بزر "الدخول عبر ديسكورد" مباشرة. أتريد المتابعة؟')) return;
+          btn.disabled = true;
+          try {
+            const data = await api('POST', `/api/access-requests/${btn.dataset.approve}/approve`);
+            alert(data.dmSent ? 'تم إنشاء الحساب، ووصلته رسالة بذلك.' : `تم إنشاء الحساب، لكن ${data.dmError}`);
+            loadRequests();
+            loadAdmins();
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+          }
         });
       });
       document.querySelectorAll('[data-reject]').forEach((btn) => {
@@ -485,6 +509,21 @@
   });
 
   loadAdmins();
+
+  document.getElementById('logoutAllBtn').addEventListener('click', async () => {
+    if (!confirm('سيخرج كل من هو مسجّل دخول الآن، بمن فيهم أنت — لازم تسجّل الدخول من جديد. متابعة؟')) return;
+    const btn = document.getElementById('logoutAllBtn');
+    const msgEl = document.getElementById('logoutAllMsg');
+    btn.disabled = true;
+    try {
+      const data = await api('POST', '/api/admins/logout-all');
+      showMsg(msgEl, `تم إخراج ${data.sessionsCleared} جلسة. جارٍ تحويلك لتسجيل الدخول…`, true);
+      setTimeout(() => { window.location.href = '/login'; }, 1500);
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+      btn.disabled = false;
+    }
+  });
 </script>
 </body>
 </html>

@@ -320,7 +320,7 @@ textarea { resize: vertical; min-height: 90px; }
 .radio-group label { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 14px; font-weight: 400; }
 .radio-group input { width: auto; }
 
-button.btn {
+.btn {
   background: linear-gradient(135deg, var(--purple-600), var(--purple-700));
   color: #fff; border: none; border-radius: var(--radius-sm);
   padding: 11px 22px; font-size: 14px; font-weight: 600;
@@ -329,15 +329,23 @@ button.btn {
   font-family: inherit;
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
-button.btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
-button.btn:active { transform: translateY(0); }
-button.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-button.btn.danger { background: linear-gradient(135deg, #ef4444, #b91c1c); box-shadow: 0 10px 26px -6px rgba(220, 38, 38, 0.4); }
-button.btn.ghost {
+a.btn { display: inline-block; text-decoration: none; }
+.btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn.danger { background: linear-gradient(135deg, #ef4444, #b91c1c); box-shadow: 0 10px 26px -6px rgba(220, 38, 38, 0.4); }
+.btn.ghost {
   background: var(--surface); border: 1px solid var(--border-strong); box-shadow: none; color: var(--text-dim);
 }
-button.btn.ghost:hover { border-color: var(--purple-500); color: var(--purple-700); background: var(--purple-100); }
-button.btn.small { padding: 6px 13px; font-size: 12.5px; margin-top: 0; }
+.btn.ghost:hover { border-color: var(--purple-500); color: var(--purple-700); background: var(--purple-100); }
+.btn.small { padding: 6px 13px; font-size: 12.5px; margin-top: 0; }
+
+.btn-discord {
+  background: #5865f2; box-shadow: 0 10px 26px -6px rgba(88, 101, 242, 0.45);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  text-decoration: none;
+}
+.btn-discord:hover { filter: brightness(1.08); text-decoration: none; }
 
 .msg { font-size: 13px; margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); display: none; font-weight: 500; }
 .msg.show { display: block; }

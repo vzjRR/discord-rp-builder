@@ -128,6 +128,11 @@ router.post('/api/admins', guard, async (req, res) => {
       error: `الرقم السري أرقام فقط، من ${auth.arabicDigits(auth.MIN_PIN_LENGTH)} إلى ${auth.arabicDigits(auth.MAX_PIN_LENGTH)} رقمًا`,
     });
   }
+  // معرّف ديسكورد مكرَّر بين حسابين يجعل تسجيل الدخول عبر ديسكورد يختار
+  // أيّهما عشوائيًا — امنعه هنا لا وقت الدخول.
+  if (discordUserId && db.prepare('SELECT id FROM admins WHERE discord_user_id = ?').get(discordUserId)) {
+    return res.status(400).json({ error: 'هذا العضو له حساب على المنصة أصلًا (بنفس معرّف ديسكورد)' });
+  }
 
   // المالك يملك كل شيء ضمنًا فلا نخزّن له قائمة. وغيره: ما اختاره المالك،
   // فإن لم يختر شيئًا فالحدّ الأدنى (اطّلاع فقط) لا صلاحيات كاملة.
@@ -184,6 +189,15 @@ router.post('/api/admins', guard, async (req, res) => {
   }
 
   res.json({ admin: { ...row, isOwner: Boolean(row.isOwner) }, dmSent, dmError });
+});
+
+// إخراج كل الجلسات النشطة فورًا — لكل الحسابات، بما فيها حساب المالك
+// نفسه. يُستعمل بعد تغيير جوهري بنظام الدخول (كإضافة تسجيل الدخول
+// بديسكورد) عشان يضطر الجميع لتسجيل دخول جديد بالطريقة المحدَّثة.
+router.post('/api/admins/logout-all', guard, async (req, res) => {
+  const { changes } = db.prepare('DELETE FROM sessions').run();
+  await logAction(req.admin, 'admin.logout_all', `أخرج كل الجلسات النشطة (${changes})`);
+  res.json({ ok: true, sessionsCleared: changes });
 });
 
 router.delete('/api/admins/:id', guard, async (req, res) => {

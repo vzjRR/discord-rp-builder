@@ -134,6 +134,7 @@ app.use(require('./src/routes/logs'));
 app.use(require('./src/routes/admins'));
 app.use(require('./src/routes/server'));
 app.use(require('./src/routes/templates'));
+app.use(require('./src/routes/discordAuth'));
 app.use(require('./src/routes/access'));
 app.use(require('./src/routes/preview'));
 app.use(require('./src/routes/pinReset'));

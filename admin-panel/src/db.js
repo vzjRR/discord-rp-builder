@@ -97,6 +97,20 @@ function migrate() {
   if (!sessionCols.includes('via_recovery')) {
     db.exec('ALTER TABLE sessions ADD COLUMN via_recovery INTEGER NOT NULL DEFAULT 0');
   }
+
+  // طلبات الدخول عبر ديسكورد: هوية مُتحقَّق منها بـ OAuth، لا مجرّد ID
+  // مكتوب يدويًا — نحفظ اسم العرض والصورة والرتبة وقت الطلب للعرض على
+  // المالك، ونُبقي discord_user_id كمصدر الحقيقة للربط بالحساب لاحقًا.
+  const accessCols = db.prepare('PRAGMA table_info(access_requests)').all().map((c) => c.name);
+  if (!accessCols.includes('discord_username')) {
+    db.exec('ALTER TABLE access_requests ADD COLUMN discord_username TEXT');
+  }
+  if (!accessCols.includes('discord_avatar')) {
+    db.exec('ALTER TABLE access_requests ADD COLUMN discord_avatar TEXT');
+  }
+  if (!accessCols.includes('discord_rank')) {
+    db.exec('ALTER TABLE access_requests ADD COLUMN discord_rank TEXT');
+  }
 }
 
 module.exports = { db, migrate };

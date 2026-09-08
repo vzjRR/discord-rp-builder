@@ -192,6 +192,25 @@ async function listMembersByRole(roleId) {
   return members.filter((m) => m.roles.includes(roleId));
 }
 
+// null لو ليس عضوًا بالسيرفر (غادر، أو لم يدخله يومًا) — لا نرمي خطأ لهذا،
+// فطلب الوصول نفسه قد يصل من أحدهم.
+async function getMember(userId) {
+  try {
+    return await request('GET', `/guilds/${guildId}/members/${userId}`);
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+}
+
+/** اسم أعلى رول حقيقي يملكه العضو (بعد @everyone)، أو null لو ما عنده رولات. */
+async function highestRoleName(member) {
+  if (!member?.roles?.length) return null;
+  const roles = await listRoles(); // مُرتَّبة تنازليًا بالفعل (position)
+  const held = roles.find((r) => member.roles.includes(r.id));
+  return held?.name || null;
+}
+
 async function searchMembers(query) {
   const q = encodeURIComponent(query);
   return request('GET', `/guilds/${guildId}/members/search?query=${q}&limit=25`);
@@ -385,6 +404,8 @@ module.exports = {
   PERMISSION_BITS,
   listAllMembers,
   listMembersByRole,
+  getMember,
+  highestRoleName,
   searchMembers,
   listBans,
   sendDM,

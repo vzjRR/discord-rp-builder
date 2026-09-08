@@ -89,6 +89,24 @@ async function loadWhoAmI() {
       document.querySelectorAll('a[href="/admins"]').forEach((a) => a.remove());
     }
     applyNavPermissions(admin);
+
+    // حساب بلا معرّف ديسكورد مربوط: ما يقدر يستعمل زر "الدخول عبر
+    // ديسكورد" بعد — نعرض له طريقة الربط مرة توضّح الخيار، لا تحجب شيئًا.
+    if (!admin.discordUserId) {
+      const banner = document.createElement('div');
+      banner.className = 'msg show ok';
+      banner.style.margin = '0 0 20px';
+      banner.style.display = 'flex';
+      banner.style.alignItems = 'center';
+      banner.style.justifyContent = 'space-between';
+      banner.style.gap = '12px';
+      banner.innerHTML =
+        '<span>حسابك يدخل بالرقم السري فقط حاليًا — اربطه بديسكورد لتدخل بزر واحد بلا رقم.</span>' +
+        '<a href="/api/auth/discord/link/start" class="btn btn-discord small" style="margin:0">ربط الحساب</a>';
+      const main = document.querySelector('main.main');
+      if (main) main.insertBefore(banner, main.firstChild);
+    }
+
     if (testMode) {
       const banner = document.createElement('div');
       banner.className = 'msg show err';
@@ -106,8 +124,28 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 
+function showLinkResultBanner() {
+  const params = new URLSearchParams(window.location.search);
+  const linked = params.get('linked');
+  const linkError = params.get('linkError');
+  if (!linked && !linkError) return;
+
+  const main = document.querySelector('main.main');
+  if (main) {
+    const banner = document.createElement('div');
+    banner.className = 'msg show ' + (linked ? 'ok' : 'err');
+    banner.style.margin = '0 0 20px';
+    banner.textContent = linked
+      ? '✅ تم ربط حساب ديسكورد بنجاح — تقدر تدخل بزر "الدخول عبر ديسكورد" الآن.'
+      : 'هذا الحساب مربوط بحساب آخر على المنصة أصلًا.';
+    main.insertBefore(banner, main.firstChild);
+  }
+  window.history.replaceState(null, '', window.location.pathname);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setupLogout();
   highlightActiveNav();
   loadWhoAmI();
+  showLinkResultBanner();
 });
