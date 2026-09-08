@@ -22,7 +22,10 @@ async function getStatus() {
 
   const joinUrl = `https://cfx.re/join/${SERVER_ID}`;
   try {
-    const res = await fetchWithTimeout(`https://servers-frontend.fivem.net/api/servers/single/${SERVER_ID}`);
+    // نطاق واجهة FiveM العامة تغيّر مؤخرًا من servers-frontend.fivem.net
+    // (صار يرد 404 لأي سيرفر) إلى frontend.cfx-services.net — نفس المصدر
+    // الذي تعتمده صفحة cfx.re/join نفسها لعرض حالة السيرفر الحية.
+    const res = await fetchWithTimeout(`https://frontend.cfx-services.net/api/servers/single/${SERVER_ID}`);
     if (!res.ok) return { online: false, serverId: SERVER_ID, joinUrl };
 
     const body = await res.json();

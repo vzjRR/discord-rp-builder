@@ -35,9 +35,6 @@ function cookieOpts(req, maxAge) {
 
 // ── بدء تسجيل الدخول ─────────────────────────────────────────────
 router.get('/api/auth/discord/start', (req, res) => {
-  if (!oauth.isConfigured()) {
-    return res.status(503).send('تسجيل الدخول عبر ديسكورد غير مفعّل على هذا الخادم بعد.');
-  }
   const state = crypto.randomBytes(24).toString('hex');
   res.cookie(STATE_COOKIE, JSON.stringify({ state, intent: 'login' }), cookieOpts(req, STATE_TTL_MS));
   res.redirect(oauth.authorizeUrl({ redirectUri: redirectUriFor(req), state }));
@@ -45,9 +42,6 @@ router.get('/api/auth/discord/start', (req, res) => {
 
 // ── ربط حساب ديسكورد بحساب حالي مسجَّل دخوله (self-service) ─────────
 router.get('/api/auth/discord/link/start', auth.requireAuth, (req, res) => {
-  if (!oauth.isConfigured()) {
-    return res.status(503).send('تسجيل الدخول عبر ديسكورد غير مفعّل على هذا الخادم بعد.');
-  }
   const state = crypto.randomBytes(24).toString('hex');
   res.cookie(STATE_COOKIE, JSON.stringify({ state, intent: 'link', adminId: req.admin.id }), cookieOpts(req, STATE_TTL_MS));
   res.redirect(oauth.authorizeUrl({ redirectUri: redirectUriFor(req), state }));
@@ -56,8 +50,6 @@ router.get('/api/auth/discord/link/start', auth.requireAuth, (req, res) => {
 // ── العودة من ديسكورد ────────────────────────────────────────────
 router.get('/api/auth/discord/callback', async (req, res) => {
   const fail = (msg) => res.redirect(`/login?oauthError=${encodeURIComponent(msg)}`);
-
-  if (!oauth.isConfigured()) return fail('تسجيل الدخول عبر ديسكورد غير مفعّل');
 
   let saved;
   try {

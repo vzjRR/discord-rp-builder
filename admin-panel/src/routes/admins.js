@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const { db } = require('../db');
 const auth = require('../auth');
@@ -11,8 +12,6 @@ const perms = require('../permissions');
 
 const router = express.Router();
 const guard = [requireAuth, requireOwner];
-
-const PIN_RE = new RegExp(`^[0-9]{${auth.MIN_PIN_LENGTH},${auth.MAX_PIN_LENGTH}}$`);
 
 // يُلحق برسالة التعريف: من يستلم حسابًا يحتاج أن يعرف حدوده، وإلا جرّب
 // ما ليس له فظنّ المنصة معطلة.
@@ -119,18 +118,18 @@ router.get('/api/admins/onboarding-message', guard, (req, res) =>
 );
 
 router.post('/api/admins', guard, async (req, res) => {
-  const { name, pin, isOwner, discordUserId, permissions: requested } = req.body || {};
+  const { name, isOwner, discordUserId, permissions: requested } = req.body || {};
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'اسم العضو مطلوب' });
   }
-  if (!PIN_RE.test(pin || '')) {
-    return res.status(400).json({
-      error: `الرقم السري أرقام فقط، من ${auth.arabicDigits(auth.MIN_PIN_LENGTH)} إلى ${auth.arabicDigits(auth.MAX_PIN_LENGTH)} رقمًا`,
-    });
+  // الدخول صار عبر ديسكورد حصرًا — حساب بلا معرّف ديسكورد لا طريقة له
+  // ليدخل بها إطلاقًا.
+  if (!discordUserId) {
+    return res.status(400).json({ error: 'اختر عضوًا من ديسكورد — الدخول للمنصة عبر ديسكورد فقط الآن' });
   }
   // معرّف ديسكورد مكرَّر بين حسابين يجعل تسجيل الدخول عبر ديسكورد يختار
   // أيّهما عشوائيًا — امنعه هنا لا وقت الدخول.
-  if (discordUserId && db.prepare('SELECT id FROM admins WHERE discord_user_id = ?').get(discordUserId)) {
+  if (db.prepare('SELECT id FROM admins WHERE discord_user_id = ?').get(discordUserId)) {
     return res.status(400).json({ error: 'هذا العضو له حساب على المنصة أصلًا (بنفس معرّف ديسكورد)' });
   }
 
@@ -140,12 +139,15 @@ router.post('/api/admins', guard, async (req, res) => {
     ? null
     : perms.serialize(Array.isArray(requested) ? requested : perms.DEFAULT_KEYS);
 
-  const pinHash = await hashPin(pin);
+  // لا رقم سري يُستعمل أبدًا — الدخول دائمًا عبر ديسكورد. رقم داخلي عشوائي
+  // طويل غير قابل للتخمين، فقط لملء عمود NOT NULL قديم، ولا يُكشف لأحد.
+  const unusablePin = crypto.randomBytes(32).toString('hex');
+  const pinHash = await hashPin(unusablePin);
   const info = db
     .prepare(
-      'INSERT INTO admins (name, pin_hash, is_owner, discord_user_id, must_change_pin, permissions) VALUES (?, ?, ?, ?, 1, ?)'
+      'INSERT INTO admins (name, pin_hash, is_owner, discord_user_id, must_change_pin, permissions) VALUES (?, ?, ?, ?, 0, ?)'
     )
-    .run(name.trim(), pinHash, isOwner ? 1 : 0, discordUserId || null, granted);
+    .run(name.trim(), pinHash, isOwner ? 1 : 0, discordUserId, granted);
   const row = db
     .prepare('SELECT id, name, discord_user_id AS discordUserId, is_owner AS isOwner, created_at AS createdAt FROM admins WHERE id = ?')
     .get(info.lastInsertRowid);
@@ -153,39 +155,34 @@ router.post('/api/admins', guard, async (req, res) => {
   await logAction(req.admin, 'admin.create', `أنشأ حساب "${name.trim()}"${isOwner ? ' (Owner)' : ''}`);
 
   // لو فيه طلب دخول معلّق بنفس الـ ID، نعتبره انحل تلقائيًا
-  if (discordUserId) {
-    db.prepare(
-      "UPDATE access_requests SET status = 'approved', resolved_at = datetime('now'), resolved_by_admin_id = ? WHERE discord_user_id = ? AND status = 'pending'"
-    ).run(req.admin.id, discordUserId);
-  }
+  db.prepare(
+    "UPDATE access_requests SET status = 'approved', resolved_at = datetime('now'), resolved_by_admin_id = ? WHERE discord_user_id = ? AND status = 'pending'"
+  ).run(req.admin.id, discordUserId);
 
   let dmSent = false;
   let dmError = null;
-  if (discordUserId) {
-    const test = testRedirectUserId();
-    const target = test || discordUserId;
-    try {
-      await sendBrandedDM(target, {
-        title: 'حساب جديد في منصة الإدارة',
-        content:
-          tpl.fillTemplate(tpl.readOnboardingTemplate(), {
-            name: name.trim(),
-            pin,
-            platformUrl: publicBaseUrl(req),
-          }) + permissionsBlock(isOwner, granted),
-      });
-      dmSent = true;
-      await logAction(
-        req.admin,
-        'admin.onboard_dm',
-        test
-          ? `(وضع تجربة) رسالة التعريف كانت ستُرسل إلى العضو ${discordUserId} — حُوّلت إلى عضو التجربة`
-          : `أرسل رسالة التعريف بالمنصة إلى حساب "${name.trim()}"`
-      );
-    } catch (err) {
-      dmError = 'أُنشئ الحساب بنجاح، لكن تعذّر إرسال رسالة التعريف (قد تكون خصوصياته مغلقة) — سلّمه رقمه السري يدويًا.';
-      console.error('admin onboarding DM failed:', err.message);
-    }
+  const test = testRedirectUserId();
+  const target = test || discordUserId;
+  try {
+    await sendBrandedDM(target, {
+      title: 'حساب جديد في منصة الإدارة',
+      content:
+        tpl.fillTemplate(tpl.readOnboardingTemplate(), {
+          name: name.trim(),
+          platformUrl: publicBaseUrl(req),
+        }) + permissionsBlock(isOwner, granted),
+    });
+    dmSent = true;
+    await logAction(
+      req.admin,
+      'admin.onboard_dm',
+      test
+        ? `(وضع تجربة) رسالة التعريف كانت ستُرسل إلى العضو ${discordUserId} — حُوّلت إلى عضو التجربة`
+        : `أرسل رسالة التعريف بالمنصة إلى حساب "${name.trim()}"`
+    );
+  } catch (err) {
+    dmError = 'أُنشئ الحساب بنجاح، لكن تعذّر إبلاغ العضو (قد تكون خصوصياته مغلقة) — أخبره أن يدخل بزر "الدخول عبر ديسكورد" مباشرة.';
+    console.error('admin onboarding DM failed:', err.message);
   }
 
   res.json({ admin: { ...row, isOwner: Boolean(row.isOwner) }, dmSent, dmError });

@@ -5,10 +5,6 @@
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 
-function isConfigured() {
-  return Boolean(CLIENT_ID && CLIENT_SECRET);
-}
-
 function authorizeUrl({ redirectUri, state }) {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -49,4 +45,4 @@ async function fetchIdentity(accessToken) {
   return res.json(); // { id, username, global_name, avatar, discriminator }
 }
 
-module.exports = { isConfigured, authorizeUrl, exchangeCode, fetchIdentity };
+module.exports = { authorizeUrl, exchangeCode, fetchIdentity };

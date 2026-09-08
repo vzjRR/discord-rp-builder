@@ -122,7 +122,7 @@
 
     <div class="card">
       <h2>رسالة الترحيب بالمنصة</h2>
-      <p class="subtitle">تُرسل هذه الرسالة تلقائيًا في الخاص إلى كل عضو تنشئ له حسابًا. عدّلها كما تشاء — واستعمل {name} و{pin} و{platformUrl} فتُستبدل تلقائيًا.</p>
+      <p class="subtitle">تُرسل هذه الرسالة تلقائيًا في الخاص إلى كل عضو تنشئ له حسابًا. عدّلها كما تشاء — واستعمل {name} و{platformUrl} فتُستبدل تلقائيًا.</p>
       <textarea id="onboardingMsg" rows="10" style="font-family:inherit"></textarea>
       <div style="display:flex;gap:10px;margin-top:12px">
         <button class="btn small" id="saveOnboarding">حفظ</button>
@@ -138,12 +138,6 @@
 
       <label>الاسم الذي يظهر في المنصة</label>
       <input type="text" id="newName" placeholder="يُملأ تلقائيًا عند اختيار عضو">
-
-      <label>الرقم السري (أرقام فقط، من ٦ إلى ٣٢ رقمًا)</label>
-      <div class="row">
-        <input type="text" inputmode="numeric" id="newPin" placeholder="مثال: 482913">
-        <button type="button" class="btn small ghost" id="genPin" style="flex:0 0 auto">🎲 توليد</button>
-      </div>
 
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
         <input type="checkbox" id="newIsOwner" style="width:auto"> صلاحية مالك (يدير حسابات المنصة أيضًا)
@@ -163,8 +157,8 @@
       </div>
 
       <p class="subtitle" style="margin-top:10px">
-        إن اخترت عضوًا من ديسكورد، أرسلت إليه المنصة تلقائيًا رسالة خاصة فيها رابط
-        الدخول ورقمه السري وتنبيهًا بمنع مشاركته — فهو يمنح تحكّمًا شبه كامل بالسيرفر.
+        الحساب يدخل عبر ديسكورد فقط — بلا رقم سري. تُرسل إليه المنصة تلقائيًا
+        رسالة خاصة فيها رابط الدخول وصلاحياته.
       </p>
 
       <button class="btn" id="createBtn">إنشاء</button>
@@ -347,13 +341,6 @@
     }
   });
 
-  document.getElementById('genPin').addEventListener('click', () => {
-    const bytes = new Uint32Array(1);
-    crypto.getRandomValues(bytes);
-    const pin = String(100000000 + (bytes[0] % 900000000));
-    document.getElementById('newPin').value = pin;
-  });
-
   // ── الصلاحيات ─────────────────────────────────────────────────
   // قائمة الصلاحيات ونصوصها تأتي من الخادم، فلا يتفرّق التعريف بين طرفين.
   let PERMS = {};
@@ -478,24 +465,22 @@
 
   document.getElementById('createBtn').addEventListener('click', async () => {
     const name = document.getElementById('newName').value.trim();
-    const pin = document.getElementById('newPin').value.trim();
     const isOwner = document.getElementById('newIsOwner').checked;
     const discordUserId = newMemberPicker.getId();
     const msgEl = document.getElementById('createMsg');
     const btn = document.getElementById('createBtn');
 
     if (!name) return showMsg(msgEl, 'اكتب اسم يظهر بالمنصة', false);
+    if (!discordUserId) return showMsg(msgEl, 'اختر عضوًا من ديسكورد أولًا', false);
 
     btn.disabled = true;
     try {
       const permissions = isOwner ? [] : readPerms(newPerms);
-      const data = await api('POST', '/api/admins', { name, pin, isOwner, discordUserId, permissions });
+      const data = await api('POST', '/api/admins', { name, isOwner, discordUserId, permissions });
       let text = `أُنشئ حساب "${name}".`;
-      if (discordUserId) text += data.dmSent ? ' وأُرسلت إليه رسالة التعريف بالمنصة وصلاحياته.' : ` غير أنه ${data.dmError}`;
-      else text += ' لم تختر عضوًا من ديسكورد، فسلّمه رقمه السري بنفسك بأمان.';
+      text += data.dmSent ? ' وأُرسلت إليه رسالة التعريف بالمنصة وصلاحياته.' : ` غير أنه ${data.dmError}`;
       showMsg(msgEl, text, true);
       document.getElementById('newName').value = '';
-      document.getElementById('newPin').value = '';
       document.getElementById('newIsOwner').checked = false;
       document.getElementById('newPermsWrap').style.display = 'block';
       permCheckboxes(newPerms, ['logs.view', 'status.view']);
