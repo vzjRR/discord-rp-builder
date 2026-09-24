@@ -13,6 +13,7 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const { register } = require('./lib/welcome');
 const activityTracker = require('./lib/activityTracker');
 const zeroTolerance = require('./lib/zeroTolerance');
+const verificationDelay = require('./lib/verificationDelay');
 
 const token = process.env.DISCORD_TOKEN;
 const guildId = process.env.GUILD_ID;
@@ -39,6 +40,11 @@ activityTracker.register(client, guildId);
 // قناة صفر تسامح — راجع config/zeroTolerance.js. يحتاج البوت صلاحيتي
 // "Kick Members" و"Ban Members"، ورولٌ أعلى من كل من يُراد شمله بالميزة.
 zeroTolerance.register(client, guildId);
+// نظام التحقق المؤجل — راجع config/verificationDelay.js. مطفّي افتراضيًا،
+// يُفعَّل من منصة الإدارة (صفحة "الرسائل الثابتة"). يحتاج رول
+// "⏳ Pending Verification" موجودًا (node build.js roles) وقناة صفر
+// التسامح مقيّدة له عبر: node build.js verification-gate
+verificationDelay.register(client);
 
 client.once('ready', async () => {
   console.log(`✅ بوت الترحيب متصل كـ ${client.user.tag}`);

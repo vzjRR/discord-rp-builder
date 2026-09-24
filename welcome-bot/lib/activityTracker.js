@@ -112,6 +112,21 @@ function prune() {
   }
 }
 
+// هل غادر هذا العضو السيرفر من قبل ولو مرة؟ الإشارة الوحيدة الموثوقة لعضو
+// "عائد" — عكس فحص وجود انضمام سابق، الذي يتطابق خطأً مع انضمامه الحالي
+// نفسه لو activityTracker سجّله قبل هذا الاستدعاء (كلاهما يستمع لنفس الحدث).
+function hasEverLeft(userId) {
+  const conn = init();
+  if (!conn) return false;
+  try {
+    const row = conn.prepare("SELECT 1 FROM member_events WHERE user_id = ? AND kind = 'leave' LIMIT 1").get(userId);
+    return Boolean(row);
+  } catch (err) {
+    console.error('⚠️  تعذّر التحقق من مغادرة سابقة لعضو:', err.message);
+    return false;
+  }
+}
+
 /** يربط التتبّع بأحداث البوت. آمن الاستدعاء ولو تعذّر فتح القاعدة. */
 function register(client, guildId) {
   const sameGuild = (g) => !guildId || g?.id === guildId;
@@ -136,4 +151,4 @@ function register(client, guildId) {
   });
 }
 
-module.exports = { register, init, DB_PATH };
+module.exports = { register, init, DB_PATH, hasEverLeft };

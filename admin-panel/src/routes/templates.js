@@ -15,6 +15,7 @@ const { logAction } = require('../audit');
 
 const router = express.Router();
 const OVERRIDE_PATH = process.env.MESSAGE_TEMPLATES_PATH || '/data/message-templates.json';
+const GATE_SETTINGS_PATH = process.env.VERIFICATION_DELAY_SETTINGS_PATH || '/data/verification-delay-settings.json';
 
 let defaults = { contentTemplate: '', dmMessage: '' };
 try {
@@ -67,6 +68,30 @@ router.post('/api/templates/reset', requireAuth, requirePermission('templates.ma
     // أصلًا ما فيه تعديل محفوظ — تجاهل
   }
   await logAction(req.admin, 'templates.update', 'رجّع الرسائل الثابتة للقيم الافتراضية');
+  res.json({ ok: true });
+});
+
+// نظام التحقق المؤجل (welcome-bot/lib/verificationDelay.js) — تفعيل/إيقاف
+// فقط، بلا نص يُعدَّل هنا؛ الرسائل ثابتة بـ welcome-bot/config/verificationDelay.js
+// عمدًا (ثنائية اللغة دومًا، لا تحتاج تخصيصًا كنصوص الترحيب).
+function readGateSettings() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(GATE_SETTINGS_PATH, 'utf8'));
+    return { enabled: parsed.enabled === true };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+router.get('/api/verification-gate', requireAuth, (req, res) => {
+  res.json(readGateSettings());
+});
+
+router.put('/api/verification-gate', requireAuth, requirePermission('templates.manage'), async (req, res) => {
+  const enabled = Boolean(req.body?.enabled);
+  fs.mkdirSync(path.dirname(GATE_SETTINGS_PATH), { recursive: true });
+  fs.writeFileSync(GATE_SETTINGS_PATH, JSON.stringify({ enabled }, null, 2));
+  await logAction(req.admin, 'verification_gate.update', `${enabled ? 'فعّل' : 'عطّل'} نظام التحقق المؤجل للأعضاء الجدد`);
   res.json({ ok: true });
 });
 

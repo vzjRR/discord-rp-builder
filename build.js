@@ -3,6 +3,9 @@ const { connect } = require('./lib/discordClient');
 const { buildOverwrites } = require('./lib/permissions');
 const roleDefs = require('./config/roles');
 const categoryDefs = require('./config/categories');
+const zeroToleranceCfg = require('./welcome-bot/config/zeroTolerance');
+
+const PENDING_ROLE_NAME = '⏳ Pending Verification';
 
 function permBits(names = []) {
   return names.map((n) => {
@@ -122,12 +125,73 @@ function listKeys() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// 3) بوابة التحقق المؤجل — تقيّد رؤية رول "⏳ Pending Verification" على
+// قناة صفر التسامح فقط، بلا أي أثر على باقي الرولات. يعمل على القنوات
+// الحيّة فعليًا بالسيرفر (لا على config/categories.js الذي قد لا يطابق
+// آخر تغييرات يدوية) — يجلب كل الأقسام والقنوات المستقلة (بلا قسم) وقت
+// التشغيل، فيبقى صحيحًا مهما تغيّرت بنية السيرفر لاحقًا. آمن التكرار.
+async function applyVerificationGate(guild) {
+  console.log('\n🚪 بوابة التحقق المؤجل — تقييد الرؤية لرول "⏳ Pending Verification"\n');
+
+  const pendingRole = guild.roles.cache.find((r) => r.name === PENDING_ROLE_NAME);
+  if (!pendingRole) {
+    console.error(`❌ رول "${PENDING_ROLE_NAME}" غير موجود — شغّل "node build.js roles" أولًا.`);
+    return;
+  }
+
+  const gateChannelId = zeroToleranceCfg.channelId;
+  if (!gateChannelId) {
+    console.error('❌ welcome-bot/config/zeroTolerance.js بدون channelId — لا توجد قناة نستثنيها من التقييد.');
+    return;
+  }
+
+  await guild.channels.fetch();
+  const gateChannel = guild.channels.cache.get(gateChannelId);
+  if (!gateChannel) {
+    console.error(`❌ ما لقيت قناة بالمعرّف ${gateChannelId} على هذا السيرفر.`);
+    return;
+  }
+
+  const categories = guild.channels.cache.filter((c) => c.type === ChannelType.GuildCategory);
+  const orphanChannels = guild.channels.cache.filter(
+    (c) => !c.parentId && c.type !== ChannelType.GuildCategory && c.id !== gateChannelId
+  );
+
+  let changed = 0;
+  for (const category of categories.values()) {
+    try {
+      await category.permissionOverwrites.edit(pendingRole.id, { ViewChannel: false });
+      changed += 1;
+    } catch (err) {
+      console.error(`   ❌ فشل تقييد القسم "${category.name}": ${err.message}`);
+    }
+  }
+  for (const channel of orphanChannels.values()) {
+    try {
+      await channel.permissionOverwrites.edit(pendingRole.id, { ViewChannel: false });
+      changed += 1;
+    } catch (err) {
+      console.error(`   ❌ فشل تقييد القناة "${channel.name}": ${err.message}`);
+    }
+  }
+
+  try {
+    await gateChannel.permissionOverwrites.edit(pendingRole.id, { ViewChannel: true });
+    console.log(`   ✅ قناة "${gateChannel.name}" تبقى ظاهرة لرول الانتظار`);
+  } catch (err) {
+    console.error(`   ❌ فشل إظهار قناة الانتظار: ${err.message}`);
+  }
+
+  console.log(`\n🎉 تم تقييد ${changed} قسم/قناة — رول "${PENDING_ROLE_NAME}" الآن لا يرى إلا "${gateChannel.name}".\n`);
+}
+
+// ─────────────────────────────────────────────────────────────
 // CLI
 // ─────────────────────────────────────────────────────────────
 async function main() {
   const [, , phase, arg] = process.argv;
 
-  if (!phase || !['roles', 'categories', 'all', 'list'].includes(phase)) {
+  if (!phase || !['roles', 'categories', 'all', 'list', 'verification-gate'].includes(phase)) {
     console.log(`
 الاستخدام:
   node build.js roles                  → ينشئ كل الرولات الناقصة فقط
@@ -135,6 +199,7 @@ async function main() {
   node build.js categories <key>       → ينشئ قسم واحد فقط (للانتقال التدريجي)
   node build.js all                    → roles ثم categories بالكامل
   node build.js list                   → يعرض مفاتيح كل الأقسام
+  node build.js verification-gate      → يقيّد رول "⏳ Pending Verification" على قناة صفر التسامح فقط
 `);
     process.exit(0);
   }
@@ -153,6 +218,10 @@ async function main() {
   }
   if (phase === 'categories' || phase === 'all') {
     await createCategories(guild, phase === 'categories' ? arg : undefined);
+  }
+  if (phase === 'verification-gate') {
+    await guild.roles.fetch();
+    await applyVerificationGate(guild);
   }
 
   console.log('\n🎉 انتهى.\n');

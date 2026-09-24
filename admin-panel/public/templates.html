@@ -62,6 +62,21 @@
     <p class="subtitle">تعديل نصوص الترحيب التي تُرسل تلقائيًا إلى كل عضو جديد</p>
 
     <div class="card">
+      <h2>نظام التحقق المؤجل للأعضاء الجدد</h2>
+      <p class="subtitle">
+        عند التفعيل: العضو الجديد يستلم رول "⏳ Pending Verification" بدل رول
+        Citizen فورًا، ولا يرى إلا قناة صفر التسامح، ثم يُمنح Citizen تلقائيًا
+        بعد ٥ دقائق (أو ١٥ دقيقة لعضو غادر السيرفر من قبل وعاد)، مع رسالة
+        خاصة بكل مرحلة بالعربية والإنجليزية. الافتراضي مطفّي.
+      </p>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+        <input type="checkbox" id="verificationGateEnabled" style="width:auto"> مفعّل
+      </label>
+      <button class="btn small" id="saveGateBtn" style="margin-top:14px">حفظ</button>
+      <div class="msg" id="gateMsg"></div>
+    </div>
+
+    <div class="card">
       <h2>المتغيرات المتاحة</h2>
       <p class="subtitle" style="line-height:2">
         <code>{member}</code> منشن العضو · <code>{memberTag}</code> يوزرنيمه · <code>{displayName}</code> اسمه المعروض ·
@@ -94,6 +109,30 @@
 <script>
   attachFormatToolbar(document.getElementById('contentTemplate'));
   attachFormatToolbar(document.getElementById('dmMessage'));
+
+  async function loadGate() {
+    try {
+      const data = await api('GET', '/api/verification-gate');
+      document.getElementById('verificationGateEnabled').checked = data.enabled;
+    } catch (err) {
+      showMsg(document.getElementById('gateMsg'), err.message, false);
+    }
+  }
+
+  document.getElementById('saveGateBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('gateMsg');
+    const btn = document.getElementById('saveGateBtn');
+    btn.disabled = true;
+    try {
+      const enabled = document.getElementById('verificationGateEnabled').checked;
+      await api('PUT', '/api/verification-gate', { enabled });
+      showMsg(msgEl, enabled ? 'تم التفعيل.' : 'تم الإيقاف.', true);
+    } catch (err) {
+      showMsg(msgEl, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   async function load() {
     try {
@@ -136,6 +175,7 @@
   });
 
   load();
+  loadGate();
 </script>
 </body>
 </html>

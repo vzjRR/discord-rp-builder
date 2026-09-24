@@ -10,6 +10,7 @@ const { AttachmentBuilder } = require('discord.js');
 const cfg = require('../config/welcome');
 const { composeWelcomeImage } = require('./composeWelcomeImage');
 const { buildTemplateVars, fillTemplate } = require('./templateVars');
+const verificationDelay = require('./verificationDelay');
 
 // لو منصة الإدارة (admin-panel) عدّلت نصوص الترحيب، تكتبها هنا — نقرأها
 // بكل حدث انضمام بدل القيم الافتراضية بـ config/welcome.js. الملف اختياري
@@ -194,7 +195,7 @@ function register(client) {
       await channel.send({ content, files });
       console.log(`✅ رحّبنا بـ ${member.user.tag} (العضو #${guild.memberCount})${inviter ? ` — دعاه ${inviter.tag}` : ''}`);
 
-      if (cfg.autoAssignRole) {
+      if (cfg.autoAssignRole && !verificationDelay.isEnabled()) {
         const role = guild.roles.cache.find((r) => r.name === cfg.autoAssignRole);
         if (role) {
           await member.roles.add(role).catch((err) => console.warn(`⚠️  فشل إعطاء الرول: ${err.message}`));
@@ -202,6 +203,8 @@ function register(client) {
           console.warn(`⚠️  الرول "${cfg.autoAssignRole}" غير موجود — شغّل node build.js roles أولًا`);
         }
       }
+      // نظام التحقق المؤجل (lib/verificationDelay.js) مفعّل: هو من يتولى منح
+      // رول الانتظار ثم Citizen لاحقًا — لا نمنحه هنا فنكرر العمل أو نسبقه.
 
       if (cfg.sendDM) {
         const dmText = fillTemplate(overrides.dmMessage || cfg.dmMessage, vars);
