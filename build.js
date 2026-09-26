@@ -199,11 +199,20 @@ const CATEGORY_STYLE_PREFIX = 'EN│───────⌈ ';
 const CATEGORY_STYLE_SUFFIX = ' ⌋───────';
 
 function splitLegacyChannelName(name) {
+  // نلقط أول فاصل يظهر فعليًا بالنص (أصغر index) — لا أول فاصل بترتيب المصفوفة.
+  // بعض القنوات الحيّة تحتوي الفاصلين معًا (مثال: "⭐〡Server・Status") وترتيب
+  // فحص خاطئ يبلع نص الاسم داخل قوس الإيموجي.
+  let bestIdx = -1;
+  let bestSep = null;
   for (const sep of CHANNEL_NAME_SEPARATORS) {
     const idx = name.indexOf(sep);
-    if (idx !== -1) return { emoji: name.slice(0, idx), rest: name.slice(idx + sep.length) };
+    if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+      bestIdx = idx;
+      bestSep = sep;
+    }
   }
-  return null;
+  if (bestIdx === -1) return null;
+  return { emoji: name.slice(0, bestIdx), rest: name.slice(bestIdx + bestSep.length) };
 }
 
 function restyleChannelName(name) {
