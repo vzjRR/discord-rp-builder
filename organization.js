@@ -32,7 +32,7 @@ async function createOrganization(orgName) {
     console.log(`⏭️  الرول موجود مسبقًا: ${roleName}`);
   }
 
-  const categoryName = `[ ORGANIZATION — ${orgName.toUpperCase()} ]`;
+  const categoryName = `EN│───────⌈ [ ORGANIZATION — ${orgName.toUpperCase()} ] ⌋───────`;
   const access = { view: [...T.STAFF_UP, roleName], write: [...T.STAFF_UP, roleName] };
 
   let category = guild.channels.cache.find((c) => c.type === ChannelType.GuildCategory && c.name === categoryName);
@@ -49,10 +49,10 @@ async function createOrganization(orgName) {
   }
 
   const channelsToCreate = [
-    { name: '💬・chat', type: 'text' },
-    { name: '📢・announcements', type: 'text', write: [...T.STAFF_UP] }, // القيادة فقط تعلن؛ عدّلها لو تحتاج رول قائد منفصل
-    { name: '📋・management', type: 'text' },
-    { name: '📦・operations', type: 'text' },
+    { name: '⌈💬⌋⁞chat', type: 'text' },
+    { name: '⌈📢⌋⁞announcements', type: 'text', write: [...T.STAFF_UP] }, // القيادة فقط تعلن؛ عدّلها لو تحتاج رول قائد منفصل
+    { name: '⌈📋⌋⁞management', type: 'text' },
+    { name: '⌈📦⌋⁞operations', type: 'text' },
     { name: '🔊・Organization', type: 'voice' },
   ];
 

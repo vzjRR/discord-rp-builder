@@ -16,14 +16,14 @@
 
 module.exports = {
   // اسم القناة اللي ترسل فيها رسالة الترحيب (لازم تطابق اسم القناة بالضبط)
-  channelName: '✈️・enclave-airport',
+  channelName: '⌈✈️⌋⁞enclave-airport',
 
   // اسم قناة القوانين (تُستخدم مع {rulesChannel} بالأسفل)
-  rulesChannelName: '📜・rules',
+  rulesChannelName: '⌈📜⌋⁞rules',
 
   // اسم قناة فتح التذاكر (تُستخدم مع {ticketChannel} / {ticketChannelUrl})
   // خلّيها null لو ما تبي تذكرها بالرسالة
-  ticketChannelName: '🎫・create-ticket',
+  ticketChannelName: '⌈🎫⌋⁞create-ticket',
 
   // نص الرسالة (عادي، مو Embed) — يُرسل مع الصورة المولّدة تلقائيًا
   contentTemplate:

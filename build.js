@@ -186,12 +186,97 @@ async function applyVerificationGate(guild) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// 4) إعادة تصميم أسماء القنوات/الأقسام — نفس الكلمات الإنجليزية الحالية،
+// نمط بصري جديد فقط (طلب المستخدم، صورة مرجعية بتاريخ 2026-09-26):
+//   قناة نصية:  ⌈{إيموجي}⌋⁞{الاسم}          (بدون مسافات)
+//   قسم:        EN│───────⌈ {الاسم القديم} ⌋───────
+// يعمل على القنوات الحيّة فعليًا (لا على config/categories.js المعروف أنه لا
+// يطابق كل قناة موجودة بالسيرفر) فيغطي حتى القنوات غير المذكورة فيه. آمن
+// التكرار: يتجاوز أي قسم/قناة منمّطة مسبقًا. القنوات الصوتية لا تُمس — الصورة
+// المرجعية قنوات نصية فقط، وأسماء الصوتية الحالية فيها مسافات لا تطابق النمط.
+const CHANNEL_NAME_SEPARATORS = ['・', '〡'];
+const CATEGORY_STYLE_PREFIX = 'EN│───────⌈ ';
+const CATEGORY_STYLE_SUFFIX = ' ⌋───────';
+
+function splitLegacyChannelName(name) {
+  for (const sep of CHANNEL_NAME_SEPARATORS) {
+    const idx = name.indexOf(sep);
+    if (idx !== -1) return { emoji: name.slice(0, idx), rest: name.slice(idx + sep.length) };
+  }
+  return null;
+}
+
+function restyleChannelName(name) {
+  const parts = splitLegacyChannelName(name);
+  if (!parts) return null;
+  return `⌈${parts.emoji}⌋⁞${parts.rest}`;
+}
+
+function restyleCategoryName(name) {
+  return `${CATEGORY_STYLE_PREFIX}${name}${CATEGORY_STYLE_SUFFIX}`;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function applyChannelStyle(guild) {
+  console.log('\n🎨 إعادة تصميم أسماء القنوات والأقسام (النمط الجديد)\n');
+
+  await guild.channels.fetch();
+  const categories = guild.channels.cache.filter((c) => c.type === ChannelType.GuildCategory);
+  const textChannels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildText);
+
+  let renamed = 0;
+  let skipped = 0;
+
+  for (const category of categories.values()) {
+    if (category.name.startsWith('EN│')) {
+      console.log(`   ⏭️  قسم منمّط مسبقًا: ${category.name}`);
+      skipped += 1;
+      continue;
+    }
+    const newName = restyleCategoryName(category.name);
+    try {
+      await category.setName(newName, 'Discord RP Builder — إعادة تصميم الأسماء');
+      console.log(`   ✅ قسم: "${category.name}" → "${newName}"`);
+      renamed += 1;
+      await sleep(300);
+    } catch (err) {
+      console.error(`   ❌ فشل تعديل القسم "${category.name}": ${err.message}`);
+    }
+  }
+
+  for (const channel of textChannels.values()) {
+    if (channel.name.startsWith('⌈')) {
+      console.log(`   ⏭️  قناة منمّطة مسبقًا: ${channel.name}`);
+      skipped += 1;
+      continue;
+    }
+    const newName = restyleChannelName(channel.name);
+    if (!newName) {
+      console.warn(`   ⚠️  تجاوزت "${channel.name}" — بلا فاصل (・ أو 〡) معروف`);
+      skipped += 1;
+      continue;
+    }
+    try {
+      await channel.setName(newName, 'Discord RP Builder — إعادة تصميم الأسماء');
+      console.log(`   ✅ قناة: "${channel.name}" → "${newName}"`);
+      renamed += 1;
+      await sleep(300);
+    } catch (err) {
+      console.error(`   ❌ فشل تعديل القناة "${channel.name}": ${err.message}`);
+    }
+  }
+
+  console.log(`\n🎉 انتهى — تم تعديل ${renamed}، تخطّينا ${skipped} (منمّطة مسبقًا أو بلا فاصل معروف أو قنوات صوتية).\n`);
+}
+
+// ─────────────────────────────────────────────────────────────
 // CLI
 // ─────────────────────────────────────────────────────────────
 async function main() {
   const [, , phase, arg] = process.argv;
 
-  if (!phase || !['roles', 'categories', 'all', 'list', 'verification-gate'].includes(phase)) {
+  if (!phase || !['roles', 'categories', 'all', 'list', 'verification-gate', 'channel-style'].includes(phase)) {
     console.log(`
 الاستخدام:
   node build.js roles                  → ينشئ كل الرولات الناقصة فقط
@@ -200,6 +285,7 @@ async function main() {
   node build.js all                    → roles ثم categories بالكامل
   node build.js list                   → يعرض مفاتيح كل الأقسام
   node build.js verification-gate      → يقيّد رول "⏳ Pending Verification" على قناة صفر التسامح فقط
+  node build.js channel-style          → يعيد تصميم كل أسماء القنوات/الأقسام الحيّة بالنمط الجديد (نفس الكلمات، شكل مختلف)
 `);
     process.exit(0);
   }
@@ -222,6 +308,9 @@ async function main() {
   if (phase === 'verification-gate') {
     await guild.roles.fetch();
     await applyVerificationGate(guild);
+  }
+  if (phase === 'channel-style') {
+    await applyChannelStyle(guild);
   }
 
   console.log('\n🎉 انتهى.\n');
