@@ -218,23 +218,45 @@ function restyleCategoryName(name) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function applyChannelStyle(guild) {
-  console.log('\n🎨 إعادة تصميم أسماء القنوات والأقسام (النمط الجديد)\n');
+// أقسام مستثناة كليًا من إعادة التصميم — لا يُلمس اسمها ولا أسماء قنواتها.
+// الأسماء هنا لازم تطابق الاسم الحي بالسيرفر بالضبط (بما فيه أي حروف Unicode
+// خاصة) — تحقّق دائمًا عبر server-snapshot.json قبل أي تشغيل حي جديد، لأن
+// السيرفر تغيّر يدويًا كثيرًا عن config/categories.js.
+const RENAME_EXCLUDED_CATEGORY_NAMES = [
+  '🔐 𝑺𝑬𝑪𝑼𝑹𝑰𝑻𝒀 & 𝑳𝑶𝑮𝑺', // logs-bot يطابق أسماء قنوات هذا القسم بالضبط — طلب صريح: لا تُلمس
+];
+
+async function applyChannelStyle(guild, { dryRun = false } = {}) {
+  console.log(`\n🎨 إعادة تصميم أسماء القنوات والأقسام${dryRun ? ' — معاينة فقط (dry-run، لا تعديل فعلي)' : ''}\n`);
 
   await guild.channels.fetch();
   const categories = guild.channels.cache.filter((c) => c.type === ChannelType.GuildCategory);
-  const textChannels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildText);
+  // القنوات النصية والإعلانية (Announcement) فقط — الصوتية لا تُمس، وقنوات بلا
+  // قسم (Orphans) مستثناة عمدًا أدناه عبر شرط c.parentId.
+  const textLikeTypes = new Set([ChannelType.GuildText, ChannelType.GuildAnnouncement]);
 
   let renamed = 0;
   let skipped = 0;
+  const excludedCategoryIds = new Set();
 
   for (const category of categories.values()) {
+    if (RENAME_EXCLUDED_CATEGORY_NAMES.includes(category.name)) {
+      console.log(`   🚫 مستثنى (لا يُلمس): ${category.name}`);
+      excludedCategoryIds.add(category.id);
+      skipped += 1;
+      continue;
+    }
     if (category.name.startsWith('EN│')) {
       console.log(`   ⏭️  قسم منمّط مسبقًا: ${category.name}`);
       skipped += 1;
       continue;
     }
     const newName = restyleCategoryName(category.name);
+    if (dryRun) {
+      console.log(`   🔎 قسم: "${category.name}" → "${newName}"`);
+      renamed += 1;
+      continue;
+    }
     try {
       await category.setName(newName, 'Discord RP Builder — إعادة تصميم الأسماء');
       console.log(`   ✅ قسم: "${category.name}" → "${newName}"`);
@@ -245,7 +267,12 @@ async function applyChannelStyle(guild) {
     }
   }
 
-  for (const channel of textChannels.values()) {
+  // قنوات بلا قسم (Orphans) مستثناة دائمًا — شرط c.parentId يستبعدها تلقائيًا.
+  const channelsToProcess = guild.channels.cache.filter(
+    (c) => textLikeTypes.has(c.type) && c.parentId && !excludedCategoryIds.has(c.parentId)
+  );
+
+  for (const channel of channelsToProcess.values()) {
     if (channel.name.startsWith('⌈')) {
       console.log(`   ⏭️  قناة منمّطة مسبقًا: ${channel.name}`);
       skipped += 1;
@@ -255,6 +282,11 @@ async function applyChannelStyle(guild) {
     if (!newName) {
       console.warn(`   ⚠️  تجاوزت "${channel.name}" — بلا فاصل (・ أو 〡) معروف`);
       skipped += 1;
+      continue;
+    }
+    if (dryRun) {
+      console.log(`   🔎 قناة: "${channel.name}" → "${newName}"`);
+      renamed += 1;
       continue;
     }
     try {
@@ -267,7 +299,8 @@ async function applyChannelStyle(guild) {
     }
   }
 
-  console.log(`\n🎉 انتهى — تم تعديل ${renamed}، تخطّينا ${skipped} (منمّطة مسبقًا أو بلا فاصل معروف أو قنوات صوتية).\n`);
+  const verb = dryRun ? 'سيتم تعديل' : 'تم تعديل';
+  console.log(`\n🎉 ${dryRun ? 'معاينة انتهت' : 'انتهى'} — ${verb} ${renamed}، تخطّينا ${skipped} (مستثناة أو منمّطة مسبقًا أو بلا فاصل معروف أو قنوات صوتية).\n`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -285,7 +318,8 @@ async function main() {
   node build.js all                    → roles ثم categories بالكامل
   node build.js list                   → يعرض مفاتيح كل الأقسام
   node build.js verification-gate      → يقيّد رول "⏳ Pending Verification" على قناة صفر التسامح فقط
-  node build.js channel-style          → يعيد تصميم كل أسماء القنوات/الأقسام الحيّة بالنمط الجديد (نفس الكلمات، شكل مختلف)
+  node build.js channel-style           → يعيد تصميم كل أسماء القنوات/الأقسام الحيّة بالنمط الجديد (نفس الكلمات، شكل مختلف)
+  node build.js channel-style --dry-run → يعرض فقط ما سيتغيّر بدون أي تعديل فعلي على ديسكورد
 `);
     process.exit(0);
   }
@@ -310,7 +344,7 @@ async function main() {
     await applyVerificationGate(guild);
   }
   if (phase === 'channel-style') {
-    await applyChannelStyle(guild);
+    await applyChannelStyle(guild, { dryRun: arg === '--dry-run' });
   }
 
   console.log('\n🎉 انتهى.\n');

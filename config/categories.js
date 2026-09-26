@@ -174,13 +174,16 @@ module.exports = [
     ],
   },
   {
+    // ⚠️ مستثنى عمدًا من إعادة تصميم الأسماء (build.js channel-style) —
+    // logs-bot يطابق أسماء هذه القنوات بالضبط. لا تُغيّر أي اسم هنا بدون
+    // تحديث logs-bot/config/logs.js وlogs-bot/find-deleter.js معه بنفس الوقت.
     key: 'security-logs',
-    name: 'EN│───────⌈ 🔐 SECURITY & LOGS ⌋───────',
+    name: '🔐 SECURITY & LOGS',
     view: T.MANAGEMENT_UP,
     write: T.BOT,
     channels: [
-      '⌈🔐⌋⁞security', '⌈📜⌋⁞audit-log', '⌈👤⌋⁞member-log', '⌈🛡️⌋⁞moderation-log', '⌈🎫⌋⁞ticket-log',
-      '⌈🚨⌋⁞report-log', '⌈🤖⌋⁞bot-log', '⌈🔨⌋⁞punishment-log', '⌈📥⌋⁞join-log', '⌈📤⌋⁞leave-log',
+      '🔐・security', '📜・audit-log', '👤・member-log', '🛡️・moderation-log', '🎫・ticket-log',
+      '🚨・report-log', '🤖・bot-log', '🔨・punishment-log', '📥・join-log', '📤・leave-log',
     ],
   },
   {

@@ -16,14 +16,18 @@
 
 module.exports = {
   // اسم القناة اللي ترسل فيها رسالة الترحيب (لازم تطابق اسم القناة بالضبط)
-  channelName: '⌈✈️⌋⁞enclave-airport',
+  // ⚠️ 2026-09-26: server-snapshot.json يُظهر إن الاسم الحي الفعلي مختلف عن
+  // هذا السطر أصلًا (حروف Unicode بولد + تكبير مختلف) — على الأغلب مُقنّع
+  // بـ WELCOME_CHANNEL_ID env var. حدّث هذا السطر بالاسم الجديد بالضبط بعد
+  // تشغيل "node build.js channel-style" و"node export.js" لمعرفة الناتج الحقيقي.
+  channelName: '✈️・enclave-airport',
 
   // اسم قناة القوانين (تُستخدم مع {rulesChannel} بالأسفل)
-  rulesChannelName: '⌈📜⌋⁞rules',
+  rulesChannelName: '📜・rules',
 
   // اسم قناة فتح التذاكر (تُستخدم مع {ticketChannel} / {ticketChannelUrl})
   // خلّيها null لو ما تبي تذكرها بالرسالة
-  ticketChannelName: '⌈🎫⌋⁞create-ticket',
+  ticketChannelName: '🎫・create-ticket',
 
   // نص الرسالة (عادي، مو Embed) — يُرسل مع الصورة المولّدة تلقائيًا
   contentTemplate:
