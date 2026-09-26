@@ -8,10 +8,13 @@ const T = require('./constants');
 // ⚠️ 2026-09-26 — نمط التسمية الجديد (طلب المستخدم: تصميم القنوات بشكل الصورة
 // المرجعية، بنفس الكلمات الإنجليزية الحالية):
 //   القنوات النصية:  ⌈{إيموجي}⌋⁞{الاسم}          (بدون مسافات)
-//   الأقسام:         EN│───────⌈ {الاسم القديم} ⌋───────
+//   الأقسام:         EN│───⌈ {الاسم القديم} ⌋───   (٣ شرطات ثابتة كل جهة)
 //   القنوات الصوتية: بلا تغيير — الصورة المرجعية أصلًا قنوات نصية فقط،
 //                    وأسماء الصوتية الحالية فيها مسافات/حروف كبيرة لا تطابق النمط.
 // طُبِّق هذا حيًا عبر: node build.js channel-style — راجع build.js.
+// عدد شرطات الأقسام أدناه (٧ ثابتة بمعظمها) قديم من أول محاولة ولم يُحدَّث
+// بالكامل — هذا الملف أصلًا معروف أنه لا يطابق القنوات الحيّة (انظر التحذير
+// أعلاه)، فلا تثق باسم القسم هنا حرفيًا لأي غرض غير التوثيق.
 // أي تعديل هنا يجب أن يطابق بالضبط ما ينتجه ذاك السكربت (logs-bot/config/logs.js
 // وwelcome-bot/config/welcome.js وlogs-bot/find-deleter.js تحدّثوا بنفس النمط).
 
@@ -174,16 +177,15 @@ module.exports = [
     ],
   },
   {
-    // ⚠️ مستثنى عمدًا من إعادة تصميم الأسماء (build.js channel-style) —
-    // logs-bot يطابق أسماء هذه القنوات بالضبط. لا تُغيّر أي اسم هنا بدون
+    // ⚠️ logs-bot يطابق أسماء هذه القنوات بالضبط. لا تُغيّر أي اسم هنا بدون
     // تحديث logs-bot/config/logs.js وlogs-bot/find-deleter.js معه بنفس الوقت.
     key: 'security-logs',
-    name: '🔐 SECURITY & LOGS',
+    name: 'EN│───⌈ 🔐 SECURITY & LOGS ⌋───',
     view: T.MANAGEMENT_UP,
     write: T.BOT,
     channels: [
-      '🔐・security', '📜・audit-log', '👤・member-log', '🛡️・moderation-log', '🎫・ticket-log',
-      '🚨・report-log', '🤖・bot-log', '🔨・punishment-log', '📥・join-log', '📤・leave-log',
+      '⌈🔐⌋⁞security', '⌈📜⌋⁞audit-log', '⌈👤⌋⁞member-log', '⌈🛡️⌋⁞moderation-log', '⌈🎫⌋⁞ticket-log',
+      '⌈🚨⌋⁞report-log', '⌈🤖⌋⁞bot-log', '⌈🔨⌋⁞punishment-log', '⌈📥⌋⁞join-log', '⌈📤⌋⁞leave-log',
     ],
   },
   {

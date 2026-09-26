@@ -31,7 +31,7 @@ async function api(route) {
   return res.json();
 }
 
-const MODERATION_LOG_CHANNEL_NAME = '🛡️・moderation-log';
+const MODERATION_LOG_CHANNEL_NAME = '⌈🛡️⌋⁞moderation-log';
 const MESSAGE_DELETE_ACTION_TYPE = 72;
 
 (async () => {

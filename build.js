@@ -189,14 +189,21 @@ async function applyVerificationGate(guild) {
 // 4) إعادة تصميم أسماء القنوات/الأقسام — نفس الكلمات الإنجليزية الحالية،
 // نمط بصري جديد فقط (طلب المستخدم، صورة مرجعية بتاريخ 2026-09-26):
 //   قناة نصية:  ⌈{إيموجي}⌋⁞{الاسم}          (بدون مسافات)
-//   قسم:        EN│───────⌈ {الاسم القديم} ⌋───────
+//   قسم:        EN│──⌈ {الاسم القديم} ⌋──   (عدد الشرطات يتكيّف مع طول الاسم)
 // يعمل على القنوات الحيّة فعليًا (لا على config/categories.js المعروف أنه لا
-// يطابق كل قناة موجودة بالسيرفر) فيغطي حتى القنوات غير المذكورة فيه. آمن
-// التكرار: يتجاوز أي قسم/قناة منمّطة مسبقًا. القنوات الصوتية لا تُمس — الصورة
-// المرجعية قنوات نصية فقط، وأسماء الصوتية الحالية فيها مسافات لا تطابق النمط.
+// يطابق كل قناة موجودة بالسيرفر) فيغطي حتى القنوات غير المذكورة فيه. القنوات
+// الصوتية لا تُمس — الصورة المرجعية قنوات نصية فقط.
+//
+// ⚠️ 2026-09-26: أول نسخة استخدمت ٧ شرطات ثابتة على كل جهة، فكانت الأسماء
+// الطويلة (MINISTRY OF JUSTICE، POLICE DEPARTMENT...) تنقص بواجهة ديسكورد
+// قبل ما يظهر القوس الختامي "⌋" أصلًا — ديسكورد يقصّ العرض حسب المساحة
+// المتاحة بالسايدبار، لا حسب أي حد حروف بالـ API. استقر الأمر على ٣ شرطات
+// ثابتة على كل جهة (طلب المستخدم) بدل الرقم الأصلي.
 const CHANNEL_NAME_SEPARATORS = ['・', '〡'];
-const CATEGORY_STYLE_PREFIX = 'EN│───────⌈ ';
-const CATEGORY_STYLE_SUFFIX = ' ⌋───────';
+const CATEGORY_DASH_COUNT = 3;
+// يطابق قسم منمّط سابقًا (بأي عدد شرطات) ويستخرج التسمية الأصلية بالداخل —
+// يسمح بإعادة حساب العدد الصحيح حتى لو اشتغل السكربت قبل بعدد شرطات مختلف.
+const CATEGORY_STYLE_RE = /^EN│─*⌈ (.+) ⌋─*$/u;
 
 function splitLegacyChannelName(name) {
   // نلقط أول فاصل يظهر فعليًا بالنص (أصغر index) — لا أول فاصل بترتيب المصفوفة.
@@ -221,8 +228,16 @@ function restyleChannelName(name) {
   return `⌈${parts.emoji}⌋⁞${parts.rest}`;
 }
 
-function restyleCategoryName(name) {
-  return `${CATEGORY_STYLE_PREFIX}${name}${CATEGORY_STYLE_SUFFIX}`;
+// يرجّع التسمية الأصلية (بدون أي غلاف) لقسم — سواء لسه ما اتنمّط، أو اتنمّط
+// قبل بعدد شرطات مختلف (نعيد حساب العدد الصحيح كل مرة، لا نتجاوزه فقط).
+function extractCategoryLabel(name) {
+  const match = name.match(CATEGORY_STYLE_RE);
+  return match ? match[1] : name;
+}
+
+function restyleCategoryName(label) {
+  const dashes = '─'.repeat(CATEGORY_DASH_COUNT);
+  return `EN│${dashes}⌈ ${label} ⌋${dashes}`;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -231,9 +246,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // الأسماء هنا لازم تطابق الاسم الحي بالسيرفر بالضبط (بما فيه أي حروف Unicode
 // خاصة) — تحقّق دائمًا عبر server-snapshot.json قبل أي تشغيل حي جديد، لأن
 // السيرفر تغيّر يدويًا كثيرًا عن config/categories.js.
-const RENAME_EXCLUDED_CATEGORY_NAMES = [
-  '🔐 𝑺𝑬𝑪𝑼𝑹𝑰𝑻𝒀 & 𝑳𝑶𝑮𝑺', // logs-bot يطابق أسماء قنوات هذا القسم بالضبط — طلب صريح: لا تُلمس
-];
+const RENAME_EXCLUDED_CATEGORY_NAMES = [];
 
 async function applyChannelStyle(guild, { dryRun = false } = {}) {
   console.log(`\n🎨 إعادة تصميم أسماء القنوات والأقسام${dryRun ? ' — معاينة فقط (dry-run، لا تعديل فعلي)' : ''}\n`);
@@ -255,12 +268,13 @@ async function applyChannelStyle(guild, { dryRun = false } = {}) {
       skipped += 1;
       continue;
     }
-    if (category.name.startsWith('EN│')) {
-      console.log(`   ⏭️  قسم منمّط مسبقًا: ${category.name}`);
+    const label = extractCategoryLabel(category.name);
+    const newName = restyleCategoryName(label);
+    if (newName === category.name) {
+      console.log(`   ⏭️  قسم بالفعل بالشكل الصحيح: ${category.name}`);
       skipped += 1;
       continue;
     }
-    const newName = restyleCategoryName(category.name);
     if (dryRun) {
       console.log(`   🔎 قسم: "${category.name}" → "${newName}"`);
       renamed += 1;
